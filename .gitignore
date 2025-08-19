@@ -1,0 +1,20 @@
+# Node modules
+node_modules/
+
+# Server files that aren't needed for GitHub Pages
+server.js
+simpleServer.js
+stableServer.js
+gameServer.js
+
+# Temporary files
+.server-port
+
+# Scripts and development files
+move_servers_to_delete.sh
+start_game.sh
+
+# Delete folder
+delete/
+
+# Keep only essential game files for GitHub Pages
