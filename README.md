@@ -21,7 +21,7 @@ A retro-style HTML5 Canvas game featuring Bhaava navigating through obstacles an
 
 ## 🚀 Play Online
 
-Play the game directly in your browser: [THE BHAAVA GAME](https://your-username.github.io/bhaava-game/)
+Play the game directly in your browser: [THE BHAAVA GAME](https://harshankara.github.io/Bhaavagame/)
 
 ## 🛠️ Technology Stack
 
