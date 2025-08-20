@@ -7,7 +7,7 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="format-detection" content="telephone=no">
-    <title>The Baava Game</title>
+    <title>The Bhaava Game</title>
     <!-- Google Fonts - Press Start 2P for retro game feel -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -127,6 +127,11 @@
             <source src="artifacts/chiptune.wav" type="audio/wav">
         </audio>
         
+        <!-- Music toggle button -->
+        <button id="musicToggle" style="position: absolute; top: 10px; right: 10px; z-index: 100; padding: 8px 12px; background: rgba(0,0,0,0.7); color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px;">
+            🔊 Music
+        </button>
+        
         <div id="mobileControls">
             <div id="leftBtn" class="controlBtn"></div>
             <div id="rightBtn" class="controlBtn"></div>
@@ -164,7 +169,7 @@
             let lightState = false;
             let lastTime = 0;
             let gameState = 'start'; // start, playing, gameOver
-            let gameOverReason = "Baava ran out of kudi!"; // Default game over message
+            let gameOverReason = "Bhaava ran out of kudi!"; // Default game over message
             
             // Houses - village style
             let houses = []; // Will be initialized after canvas is ready
@@ -295,11 +300,9 @@
             const gifElements = {};
             const imagesToLoad = [
                 // Animated GIFs need special handling
-                { name: 'baavaHappy', src: 'artifacts/baava-happy.GIF', isGif: true },
-                { name: 'baavaNeutral', src: 'artifacts/baava-neutral.GIF', isGif: true },
-                { name: 'baavaSad', src: 'artifacts/baava-sad.GIF', isGif: true },
-                { name: 'baavaBottle', src: 'artifacts/baava-bottle.GIF', isGif: true },
-                { name: 'baavaLeaf', src: 'artifacts/baava-leaf.GIF', isGif: true },
+                { name: 'bhaavaHappy', src: 'artifacts/bhaava-happy.GIF', isGif: true },
+                { name: 'bhaavaNeutral', src: 'artifacts/bhaava-neutral.GIF', isGif: true },
+                { name: 'bhaavaSad', src: 'artifacts/bhaava-sad.GIF', isGif: true },
                 { name: 'oldmonk', src: 'artifacts/oldmonk.PNG' },
                 { name: 'leaves', src: 'artifacts/leaves.PNG' },
                 { name: 'raviAnna', src: 'artifacts/ravi-anna.GIF', isGif: true },
@@ -320,8 +323,8 @@
             const player = {
                 x: 0,
                 y: 0,
-                width: 110,   // Increased from 80 to make Baava bigger
-                height: 110,  // Increased from 80 to make Baava bigger
+                width: 100,
+                height: 130,
                 speed: 5,
                 energy: 100,
                 direction: 0,  // -1: left, 0: still, 1: right
@@ -330,24 +333,14 @@
                 frameTimer: 0,
                 frameInterval: 100, // ms
                 isHit: false,
-                isHappy: false,
-                isCollectingBottle: false,
-                isCollectingLeaf: false,
-                // Flashing effect when hit
-                isFlashing: false,
-                flashTimer: 0,
-                flashDuration: 1000, // Flash for 1 second
-                // 4-Lane system
-                currentLane: 1, // 0, 1, 2, 3 (left to right)
-                targetX: 0,
-                isMoving: false
+                isHappy: false
             };
             
             // Game variables
             let score = 0;
             let currentRound = 1;
             let roundStartTime = 0;
-            let roundDuration = 15000; // 15 seconds per round as specified
+            let roundDuration = 10000; // 10 seconds per round
             let guruSpawnedThisRound = 0;
             
             // Round transition notification
@@ -358,6 +351,7 @@
             // Music control
             let musicEnabled = true;
             let backgroundMusic = null;
+            let musicToggleButton = null;
             
             const alcohols = [];
             const leaves = [];
@@ -403,46 +397,24 @@
                 return 0.015; // Moderate increase after round 5
             }
             
-            // Difficulty Scaling System according to game rules
-            
             function getEnemyCount() {
-                // Enemy Count per Frame based on round
-                if (currentRound <= 3) return 2;        // Max 2 enemies at once
-                else if (currentRound <= 6) return 3;   // Max 3 enemies
-                else if (currentRound <= 10) return 4;  // Max 4 enemies
-                else return Math.min(6, 4 + Math.floor((currentRound - 10) / 2)); // Gradually increase up to 6
+                return Math.min(2 + currentRound - 1, 8); // Start with 2, increase by 1 each round, max 8
             }
             
             function getGuruCount() {
                 return Math.min(Math.floor((currentRound + 1) / 2), 3); // 1 guru rounds 1-2, 2 gurus rounds 3-4, etc.
             }
             
-            // Enemy Speed Scaling: enemySpeed = baseSpeed + (roundNumber * speedStep)
-            function getEnemySpeed() {
-                const baseSpeed = 1.0;
-                const speedStep = 0.2; // Increase per round
-                const maxSpeed = 4.0;  // Speed cap to avoid impossibility
-                return Math.min(maxSpeed, baseSpeed + (currentRound * speedStep));
-            }
-            
-            // Enemy Spawn Rate Scaling: spawnRate = baseRate + (roundNumber * rateStep)
-            function getEnemySpawnRate() {
-                const baseRate = 0.008; // Base spawn rate
-                const rateStep = 0.002; // Increase per round
-                const maxRate = 0.03;   // Cap at reasonable max
-                return Math.min(maxRate, baseRate + (currentRound * rateStep));
-            }
-            
-            // Speed progression functions for collectibles
+            // Speed progression functions
             function getObjectSpeed() {
-                const baseSpeed = 1.5;
-                const speedMultiplier = 1 + (currentRound - 1) * 0.15;
+                const baseSpeed = 1.5; // Reduced from 3
+                const speedMultiplier = 1 + (currentRound - 1) * 0.15; // Reduced from 0.3 to 0.15
                 return baseSpeed * speedMultiplier;
             }
             
             function getLeafSpeed() {
-                const baseSpeed = 1.2;
-                const speedMultiplier = 1 + (currentRound - 1) * 0.12;
+                const baseSpeed = 1.2; // Reduced from 2
+                const speedMultiplier = 1 + (currentRound - 1) * 0.12; // Reduced from 0.25 to 0.12
                 return baseSpeed * speedMultiplier;
             }
             
@@ -500,13 +472,21 @@
             // Music control functions
             function initMusic() {
                 backgroundMusic = document.getElementById('backgroundMusic');
+                musicToggleButton = document.getElementById('musicToggle');
                 
                 // Set initial volume
                 backgroundMusic.volume = 0.3;
+                
+                // Add click event to toggle button
+                musicToggleButton.addEventListener('click', toggleMusic);
+                
+                // Update button text
+                updateMusicButtonText();
             }
             
             function toggleMusic() {
                 musicEnabled = !musicEnabled;
+                updateMusicButtonText();
                 
                 if (gameState === 'playing') {
                     if (musicEnabled) {
@@ -517,12 +497,15 @@
                 }
             }
             
+            function updateMusicButtonText() {
+                if (musicToggleButton) {
+                    musicToggleButton.textContent = musicEnabled ? '🔊 Music' : '🔇 Music';
+                }
+            }
+            
             function playBackgroundMusic() {
-                if (backgroundMusic && musicEnabled && gameState === 'playing') {
-                    // Only reset if not already playing
-                    if (backgroundMusic.paused || backgroundMusic.ended) {
-                        backgroundMusic.currentTime = 0;
-                    }
+                if (backgroundMusic && musicEnabled) {
+                    backgroundMusic.currentTime = 0; // Reset to beginning
                     backgroundMusic.play().catch(e => {
                         console.log('Could not play music:', e);
                     });
@@ -1180,16 +1163,12 @@
                 ctx.translate(Math.floor(player.x), Math.floor(player.y));
                 
                 // Choose between neutral, happy and sad based on player state
-                let imageKey = 'baavaNeutral'; // Default state is neutral
+                let imageKey = 'bhaavaNeutral'; // Default state is neutral
                 
                 if (player.isHit) {
-                    imageKey = 'baavaSad'; // Use sad when hit by enemy
-                } else if (player.isCollectingBottle) {
-                    imageKey = 'baavaBottle'; // Use bottle when collecting bottles
-                } else if (player.isCollectingLeaf) {
-                    imageKey = 'baavaLeaf'; // Use leaf when collecting leaves
+                    imageKey = 'bhaavaSad'; // Use sad when hit by enemy
                 } else if (player.isHappy) {
-                    imageKey = 'baavaHappy'; // Use happy when collecting items (fallback)
+                    imageKey = 'bhaavaHappy'; // Use happy when collecting items
                 }
                 
                 // Get both static and animated versions
@@ -1209,25 +1188,10 @@
                 const destX = player.x - player.width/2;
                 const destY = player.y - player.height/2 + runningEffect;
                 
-                // Apply flashing effect
-                if (player.isFlashing) {
-                    // Create flashing effect by alternating opacity
-                    const flashPhase = Math.floor((Date.now() - player.flashTimer) / 150) % 2; // Flash every 150ms
-                    ctx.globalAlpha = flashPhase === 0 ? 0.3 : 1.0; // Alternate between dim and normal
-                }
-                
                 // If we have a GIF element, position and show it
                 if (playerGif && document.getElementById('gif-container')) {
                     // Position and size the GIF element where it should appear on canvas
                     updateGifPosition(imageKey, destX, destY, player.width, player.height);
-                    
-                    // Apply flashing to GIF element as well
-                    if (player.isFlashing) {
-                        const flashPhase = Math.floor((Date.now() - player.flashTimer) / 150) % 2;
-                        playerGif.style.opacity = flashPhase === 0 ? '0.3' : '1.0';
-                    } else {
-                        playerGif.style.opacity = '1.0'; // Normal opacity when not flashing
-                    }
                     
                     // Draw placeholder rectangle with low opacity to mark position
                     ctx.fillStyle = 'rgba(255,255,255,0.01)';  // Almost invisible placeholder
@@ -1248,20 +1212,17 @@
                     ctx.fillRect(-player.width/2, -player.height/2 + runningEffect, player.width, player.height);
                 }
                 
-                // Reset alpha after flashing effect
-                ctx.globalAlpha = 1.0;
-                
                 ctx.restore();
             }
             
-            // Draw kudi meter (energy bar) with all UI elements
+            // Draw kudi meter (energy bar)
             function drawEnergyBar() {
                 const barWidth = 200;
                 const barHeight = 20;
                 const x = 20;
-                const y = 30;
+                const y = 20; // Back to original position
                 
-                // Background of energy bar
+                // Background
                 ctx.fillStyle = '#333';
                 ctx.fillRect(x, y, barWidth, barHeight);
                 
@@ -1275,50 +1236,20 @@
                 ctx.lineWidth = 2;
                 ctx.strokeRect(x, y, barWidth, barHeight);
                 
-                // "Kudi Meter" text inside the bar - increased size
+                // Text inside the bar (same font as homepage)
                 ctx.fillStyle = '#fff';
-                ctx.font = "12px 'Press Start 2P', monospace"; // Increased from 9px to 12px
-                ctx.fillText(`Kudi Meter: ${Math.floor(player.energy)}%`, x + 5, y + 16);
+                ctx.font = "12px 'Press Start 2P', monospace"; // Changed to Press Start 2P
+                ctx.fillText(`Kudi: ${Math.floor(player.energy)}%`, x + 10, y + 15); // Inside the bar
                 
-                // UI elements positioned next to Kudi meter (on the road area)
-                const uiStartX = x + barWidth + 15; // Reduced spacing from 40 to 15 - much closer to meter
-                
-                // Score display - positioned next to Kudi meter
+                // Score display (same font as homepage)
                 ctx.fillStyle = '#fff';
-                ctx.font = "14px 'Press Start 2P', monospace"; // Increased size for visibility
-                ctx.textAlign = 'left';
-                ctx.fillText(`Score: ${score}`, uiStartX, y + 5);
+                ctx.font = "12px 'Press Start 2P', monospace"; // Changed to Press Start 2P
+                ctx.fillText(`Score: ${score}`, canvas.width - 120, y + 15);
                 
-                // Round display (next to Score)
-                ctx.fillStyle = '#fff';
-                ctx.font = "14px 'Press Start 2P', monospace"; // Increased size for visibility
-                ctx.textAlign = 'left';
-                ctx.fillText(`Round: ${currentRound}`, uiStartX, y + 25);
-                
-                // Music toggle (next to Round) - show checkbox state
-                const musicY = y + 45;
-                ctx.fillStyle = '#fff';
-                ctx.font = "12px 'Press Start 2P', monospace"; // Same as other text
-                ctx.textAlign = 'left';
-                ctx.fillText('Music: ', uiStartX, musicY);
-
-                // Draw even larger checkbox symbol separately
-                ctx.font = "36px 'Press Start 2P', monospace"; // Even larger font for checkbox
-                const musicSymbol = musicEnabled ? '☑' : '☐'; // Checked or unchecked
-                ctx.fillText(musicSymbol, uiStartX + 85, musicY + 8); // Adjust vertical position for alignment
-                
-                // Music checkbox (invisible but still clickable for functionality)
-                const checkboxX = uiStartX + 85; // Position near the checkmark
-                const checkboxY = musicY - 15;
-                const checkboxSize = 20; // Larger for easier clicking
-                
-                // Store checkbox position for click detection
-                window.musicCheckbox = {
-                    x: checkboxX,
-                    y: checkboxY,
-                    width: checkboxSize,
-                    height: checkboxSize
-                };
+                // Round display
+                ctx.fillStyle = '#FFD700'; // Gold color for round
+                ctx.font = "12px 'Press Start 2P', monospace"; // Changed to Press Start 2P to match other text
+                ctx.fillText(`Roundu: ${currentRound}`, canvas.width - 120, y + 35);
             }
             
             // Draw round transition notification
@@ -1480,34 +1411,14 @@
             
             // Update player position and state
             function updatePlayer(deltaTime) {
-                // 4-Lane Movement System
-                const laneWidth = roadWidth / 4;
-                const lanes = [
-                    roadLeft + laneWidth * 0.5,     // Lane 0 (leftmost)
-                    roadLeft + laneWidth * 1.5,     // Lane 1
-                    roadLeft + laneWidth * 2.5,     // Lane 2
-                    roadLeft + laneWidth * 3.5      // Lane 3 (rightmost)
-                ];
+                // Move player based on direction
+                player.x += player.speed * player.direction;
                 
-                // Set target position based on current lane
-                player.targetX = lanes[player.currentLane];
-                
-                // Smoothly move to target position
-                const moveSpeed = 12; // Fast lane switching
-                if (Math.abs(player.x - player.targetX) > 2) {
-                    if (player.x < player.targetX) {
-                        player.x += moveSpeed;
-                        player.direction = 1;
-                        player.isMoving = true;
-                    } else if (player.x > player.targetX) {
-                        player.x -= moveSpeed;
-                        player.direction = -1;
-                        player.isMoving = true;
-                    }
-                } else {
-                    player.x = player.targetX; // Snap to lane center
-                    player.direction = 0;
-                    player.isMoving = false;
+                // Keep player within road boundaries
+                if (player.x < roadLeft + player.width/2) {
+                    player.x = roadLeft + player.width/2;
+                } else if (player.x > roadLeft + roadWidth - player.width/2) {
+                    player.x = roadLeft + roadWidth - player.width/2;
                 }
                 
                 // Update animation frame (used for movement bobbing only)
@@ -1517,82 +1428,41 @@
                     player.frameX = (player.frameX + 1) % player.frameCount;
                 }
                 
-                // Update flashing effect
-                if (player.isFlashing) {
-                    if (Date.now() - player.flashTimer > player.flashDuration) {
-                        player.isFlashing = false; // Stop flashing after duration
-                    }
-                }
-                
                 // Update energy
-                // Energy only decreases when hit by enemies, not over time
+                if (player.energy > 0) {
+                    player.energy -= 0.05;  // Slowly decrease energy
+                }
                 
                 if (player.energy <= 0 && gameState === 'playing') {
                     gameState = 'gameOver';
-                    gameOverReason = "Baava ran out of kudi!";
+                    gameOverReason = "Bhaava ran out of kudi!";
                     stopBackgroundMusic(); // Stop music when game ends
                     console.log("Game Over - Out of kudi");
                 }
             }
             
-            // Unified collectible spawning system (50% leaves, 50% bottles)
-            function spawnCollectibles() {
+            // Spawn alcohol bottles
+            function spawnAlcohol() {
                 if (Math.random() < getCollectibleSpawnRate()) {  // Dynamic spawn rate based on round
-                    // Determine type: 50% chance for leaves, 50% for bottles
-                    const isLeaf = Math.random() < 0.5;
+                    const width = 90;
+                    const height = 60;
                     
-                    if (isLeaf) {
-                        spawnLeaf();
-                    } else {
-                        spawnBottle();
-                    }
-                }
-            }
-            
-            // Spawn alcohol bottles (50% of all collectibles)
-            function spawnBottle() {
-                const width = 90;
-                const height = 60;
-                
-                // Try multiple times to find a clear position
-                for (let attempts = 0; attempts < 10; attempts++) {
-                    const x = roadLeft + width/2 + Math.random() * (roadWidth - width);
-                    const y = -50;
-                    
-                    if (isPositionClear(x, y, width, height)) {
-                        const alcohol = {
-                            x: x,
-                            y: y,
-                            speed: getObjectSpeed() + Math.random() * 2,
-                            width: width,
-                            height: height
-                        };
-                        alcohols.push(alcohol);
-                        break;
-                    }
-                }
-            }
-            
-            // Spawn leaves (50% of all collectibles)
-            function spawnLeaf() {
-                const width = 70;
-                const height = 50;
-                
-                // Try multiple times to find a clear position
-                for (let attempts = 0; attempts < 10; attempts++) {
-                    const x = roadLeft + width/2 + Math.random() * (roadWidth - width);
-                    const y = -50;
-                    
-                    if (isPositionClear(x, y, width, height)) {
-                        const leaf = {
-                            x: x,
-                            y: y,
-                            speed: getObjectSpeed() + Math.random() * 2,
-                            width: width,
-                            height: height
-                        };
-                        leaves.push(leaf);
-                        break;
+                    // Try multiple times to find a clear position
+                    for (let attempts = 0; attempts < 10; attempts++) {
+                        const x = roadLeft + width/2 + Math.random() * (roadWidth - width);
+                        const y = -50;
+                        
+                        if (isPositionClear(x, y, width, height)) {
+                            const alcohol = {
+                                x: x,
+                                y: y,
+                                speed: getObjectSpeed() + Math.random() * 2,
+                                width: width,
+                                height: height
+                            };
+                            alcohols.push(alcohol);
+                            break;
+                        }
                     }
                 }
             }
@@ -1617,13 +1487,13 @@
                         alcohols[i].x > player.x - player.width/2 && 
                         alcohols[i].x < player.x + player.width/2
                     ) {
-                        // Player collected alcohol (bottle)
-                        player.energy = Math.min(100, player.energy + 5);  // Restores +5% Energy
-                        score += 20;  // Adds +20 points to score
-                        player.isCollectingBottle = true; // Make player show bottle collection animation
+                        // Player collected alcohol
+                        player.energy = Math.min(100, player.energy + 15);  // Increase energy
+                        score += 10;  // Increase score
+                        player.isHappy = true; // Make player happy
                         
-                        // Reset isCollectingBottle after a short delay
-                        setTimeout(() => { player.isCollectingBottle = false; }, 1000);
+                        // Reset isHappy after a short delay
+                        setTimeout(() => { player.isHappy = false; }, 1000);
                         
                         alcohols.splice(i, 1);
                         continue;
@@ -1632,6 +1502,34 @@
                     // Remove if off screen
                     if (alcohols[i].y > canvas.height + 50) {
                         alcohols.splice(i, 1);
+                    }
+                }
+            }
+            
+            // Spawn leaf obstacles
+            function spawnLeaves() {
+                if (Math.random() < getLeafSpawnRate()) {  // Dynamic spawn rate based on round
+                    const width = 45;
+                    const height = 45;
+                    
+                    // Try multiple times to find a clear position
+                    for (let attempts = 0; attempts < 10; attempts++) {
+                        const x = roadLeft + width/2 + Math.random() * (roadWidth - width);
+                        const y = -50;
+                        
+                        if (isPositionClear(x, y, width, height)) {
+                            const leaf = {
+                                x: x,
+                                y: y,
+                                speed: getLeafSpeed() + Math.random() * 3,
+                                rotation: Math.random() * Math.PI * 2,
+                                rotationSpeed: (Math.random() - 0.5) * 0.1,
+                                width: width,
+                                height: height
+                            };
+                            leaves.push(leaf);
+                            break;
+                        }
                     }
                 }
             }
@@ -1658,12 +1556,12 @@
                         leaves[i].x < player.x + player.width/2
                     ) {
                         // Player collected leaf
-                        player.energy = Math.min(100, player.energy + 2);  // Restores +2% Energy
-                        score += 10;  // Adds +10 points to score
-                        player.isCollectingLeaf = true; // Make player show leaf collection animation
+                        player.energy = Math.min(100, player.energy + 10);  // Increase energy
+                        score += 5;  // Increase score
+                        player.isHappy = true; // Make player happy
                         
-                        // Reset isCollectingLeaf after a short delay
-                        setTimeout(() => { player.isCollectingLeaf = false; }, 1000);
+                        // Reset isHappy after a short delay
+                        setTimeout(() => { player.isHappy = false; }, 1000);
                         
                         leaves.splice(i, 1);
                         continue;
@@ -1704,8 +1602,7 @@
                     return;
                 }
                 
-                // Use the new difficulty-scaled spawn rate
-                if (Math.random() < getEnemySpawnRate()) {
+                if (Math.random() < 0.008) {  // Lower base spawn probability for better balance
                     // Get a random enemy type, avoiding the same type twice in a row
                     let typeIndex;
                     
@@ -1734,7 +1631,7 @@
                             const enemy = {
                                 x: x,
                                 y: y,
-                                speed: getEnemySpeed(),
+                                speed: enemyType.speed * (1 + (currentRound - 1) * 0.1), // Reduced from 0.2 to 0.1 - increase enemy speed by 10% each round
                                 type: enemyType.type,
                                 width: enemyType.width,
                                 height: enemyType.height,
@@ -1776,17 +1673,13 @@
                             enemies.splice(i, 1);
                             continue;
                         } else {
-                            // Player hit regular enemy - damage based on enemy type
-                            let damage = 35; // Default damage for most enemies
-                            if (enemies[i].type === 'guru' || enemies[i].type === 'raviAnna') {
-                                damage = 50; // Guru and Ravi Anna do -50% Energy
+                            // Player hit regular enemy - different damage for different enemies
+                            let damage = 20; // Default damage
+                            if (enemies[i].type === 'raviAnna') {
+                                damage = 30; // Ravi Anna does more damage
                             }
                             player.energy = Math.max(0, player.energy - damage);
                             player.isHit = true;
-                            
-                            // Start flashing effect
-                            player.isFlashing = true;
-                            player.flashTimer = Date.now();
                             
                             // Reset isHit after a short delay
                             setTimeout(() => { player.isHit = false; }, 1000);
@@ -1950,25 +1843,25 @@
                 const flashOn = Math.floor(Date.now() / 600) % 2 === 0; // Flash every 600ms
                 const glowIntensity = flashOn ? 20 : 5;
                 
-                // "THE" - Smaller than BAAVA
+                // "THE" - Smaller than BHAAVA
                 ctx.fillStyle = '#FFFFFF'; // White
                 ctx.font = "40px 'Press Start 2P', monospace"; // Reduced from 48px to 40px
                 ctx.shadowColor = flashOn ? '#00FFFF' : '#FFFFFF'; // Cyan glow when flashing
                 ctx.shadowBlur = glowIntensity;
                 ctx.fillText('THE', centerX, currentY);
                 
-                currentY += 70; // Spacing above BAAVA
+                currentY += 70; // Spacing above BHAAVA
                 
-                // "BAAVA" - Largest, properly centered without extra spaces
+                // "BHAAVA" - Largest, properly centered without extra spaces
                 ctx.fillStyle = '#FFFFFF'; // White
                 ctx.font = "64px 'Press Start 2P', monospace";
                 ctx.shadowColor = flashOn ? '#00FFFF' : '#FFFFFF'; // Cyan glow when flashing
                 ctx.shadowBlur = glowIntensity;
-                ctx.fillText('BAAVA', centerX, currentY); // Removed extra spaces for proper centering
+                ctx.fillText('BHAAVA', centerX, currentY); // Removed extra spaces for proper centering
                 
-                currentY += 70; // Equal spacing below BAAVA (same as above)
+                currentY += 70; // Equal spacing below BHAAVA (same as above)
                 
-                // "GAME" - Smaller than BAAVA, same as THE
+                // "GAME" - Smaller than BHAAVA, same as THE
                 ctx.fillStyle = '#FFFFFF'; // White
                 ctx.font = "40px 'Press Start 2P', monospace"; // Reduced from 48px to 40px to match THE
                 ctx.shadowColor = flashOn ? '#00FFFF' : '#FFFFFF'; // Cyan glow when flashing
@@ -1982,28 +1875,28 @@
                 
                 // Subtitle - Help text (broken into multiple lines for better fit)
                 ctx.fillStyle = '#CCCCCC'; // Light gray
-                ctx.font = "15px 'Press Start 2P', cursive"; // Larger font for help lines
-                ctx.fillText('Help Baava Navigate', centerX, currentY);
-
+                ctx.font = "14px 'Press Start 2P', cursive"; // Reduced font size to fit screen
+                ctx.fillText('Help Bhaava navigate', centerX, currentY);
+                
                 currentY += 28; // Line break
-
-                ctx.fillText('Naveena\'s Beegru Oota by', centerX, currentY);
-
-                currentY += 28; // Line break
-
-                ctx.fillText('collecting his favourites!', centerX, currentY);
-
+                
+                ctx.fillText('Naveena\'s Beegru Oota !', centerX, currentY);
+                
                 currentY += 70; // Line break
-
-                // Extra line break before Tap to Start
-                currentY += 30;
-
-                // Tap to start - slightly smaller, still red
-                ctx.fillStyle = '#FF2222'; // Bright red
-                ctx.font = "16px 'Press Start 2P', cursive";
+                
+                // Tap to start
+                ctx.fillStyle = '#AAAAAA'; // Medium gray
+                ctx.font = "14px 'Press Start 2P', cursive"; // Increased from 10px to 14px
                 ctx.fillText('Tap to Start Play', centerX, currentY);
-
-                currentY += 60; // Space after
+                
+                currentY += 50; // First line break
+                
+                currentY += 30; // Second line break
+                
+                // Warning text in red - same size as beegru line
+                ctx.fillStyle = '#FF0000'; // Red
+                ctx.font = "14px 'Press Start 2P', cursive"; // Same as beegru line (14px)
+                ctx.fillText('PS: Beware of Guruji !', centerX, currentY);
             }
             
             // Draw game over screen
@@ -2027,12 +1920,12 @@
                 const flashOn = Math.floor(time / 400) % 2 === 0; // Flash every 400ms
                 const glowIntensity = 15 + 10 * Math.sin(time / 300); // Pulsing glow
                 
-                // "BAAVA" - Small (40px)
+                // "BHAAVA" - Small (40px)
                 ctx.fillStyle = '#FFFFFF'; // White
                 ctx.font = "40px 'Press Start 2P', monospace";
                 ctx.shadowColor = flashOn ? '#00FFFF' : '#FFFFFF'; // Cyan glow when flashing
                 ctx.shadowBlur = glowIntensity;
-                ctx.fillText('BAAVA', centerX, currentY);
+                ctx.fillText('BHAAVA', centerX, currentY);
                 
                 currentY += 70; // Equal spacing
                 
@@ -2077,21 +1970,23 @@
                 ctx.fillText('Tap to Start Play', centerX, currentY);
             }
             
-            // Handle keyboard input - 4-Lane Movement
+            // Handle keyboard input
             function handleKeyDown(e) {
                 if (gameState === 'playing') {
-                    if (e.key === 'ArrowLeft' && player.currentLane > 0) {
-                        player.currentLane--;
-                        e.preventDefault();
-                    } else if (e.key === 'ArrowRight' && player.currentLane < 3) {
-                        player.currentLane++;
-                        e.preventDefault();
+                    if (e.key === 'ArrowLeft') {
+                        player.direction = -1;
+                    } else if (e.key === 'ArrowRight') {
+                        player.direction = 1;
                     }
                 }
             }
             
             function handleKeyUp(e) {
-                // No need to handle key up for discrete lane movement
+                if (e.key === 'ArrowLeft' && player.direction === -1) {
+                    player.direction = 0;
+                } else if (e.key === 'ArrowRight' && player.direction === 1) {
+                    player.direction = 0;
+                }
             }
             
             // Handle touch input
@@ -2107,26 +2002,30 @@
                 
                 leftBtn.addEventListener('touchstart', function(e) {
                     e.preventDefault();
-                    if (gameState === 'playing' && player.currentLane > 0) {
-                        player.currentLane--;
+                    if (gameState === 'playing') {
+                        player.direction = -1;
                     }
                 });
                 
                 rightBtn.addEventListener('touchstart', function(e) {
                     e.preventDefault();
-                    if (gameState === 'playing' && player.currentLane < 3) {
-                        player.currentLane++;
+                    if (gameState === 'playing') {
+                        player.direction = 1;
                     }
                 });
                 
                 leftBtn.addEventListener('touchend', function(e) {
                     e.preventDefault();
-                    // No action needed for discrete lane movement
+                    if (player.direction === -1) {
+                        player.direction = 0;
+                    }
                 });
                 
                 rightBtn.addEventListener('touchend', function(e) {
                     e.preventDefault();
-                    // No action needed for discrete lane movement
+                    if (player.direction === 1) {
+                        player.direction = 0;
+                    }
                 });
             }
             
@@ -2137,11 +2036,6 @@
                     gameState = 'playing';
                     player.energy = 100;
                     score = 0;
-                    
-                    // Reset 4-lane player position
-                    player.currentLane = 1; // Start in lane 1 (second from left)
-                    player.direction = 0;
-                    player.isMoving = false;
                     
                     // Reset round system
                     currentRound = 1;
@@ -2255,9 +2149,10 @@
                     updatePlayer(deltaTime);
                     
                     // Spawn and update obstacles and pickups
-                    spawnCollectibles();
+                    spawnAlcohol();
                     updateAlcohols();
                     
+                    spawnLeaves();
                     updateLeaves();
                     
                     spawnEnemies();
@@ -2296,49 +2191,11 @@
             window.addEventListener('keydown', handleKeyDown);
             window.addEventListener('keyup', handleKeyUp);
             
-            // Click/tap to start or restart game, or handle UI clicks
-            canvas.addEventListener('click', function(e) {
-                if (gameState === 'playing' && window.musicCheckbox) {
-                    // Get click position relative to canvas
-                    const rect = canvas.getBoundingClientRect();
-                    const x = e.clientX - rect.left;
-                    const y = e.clientY - rect.top;
-                    
-                    // Check if click is on music checkbox
-                    if (x >= window.musicCheckbox.x && x <= window.musicCheckbox.x + window.musicCheckbox.width &&
-                        y >= window.musicCheckbox.y && y <= window.musicCheckbox.y + window.musicCheckbox.height) {
-                        toggleMusic();
-                        return;
-                    }
-                }
-                
-                // If not playing or not clicking checkbox, start/restart game
-                if (gameState !== 'playing') {
-                    startGame();
-                }
-            });
+            // Click/tap to start or restart game
+            canvas.addEventListener('click', startGame);
             canvas.addEventListener('touchstart', function(e) {
                 e.preventDefault(); // Prevent double-firing of events
-                
-                if (gameState === 'playing' && window.musicCheckbox) {
-                    // Get touch position relative to canvas
-                    const rect = canvas.getBoundingClientRect();
-                    const touch = e.touches[0];
-                    const x = touch.clientX - rect.left;
-                    const y = touch.clientY - rect.top;
-                    
-                    // Check if touch is on music checkbox
-                    if (x >= window.musicCheckbox.x && x <= window.musicCheckbox.x + window.musicCheckbox.width &&
-                        y >= window.musicCheckbox.y && y <= window.musicCheckbox.y + window.musicCheckbox.height) {
-                        toggleMusic();
-                        return;
-                    }
-                }
-                
-                // If not playing or not touching checkbox, start/restart game
-                if (gameState !== 'playing') {
-                    startGame();
-                }
+                startGame();
             });
             
             // Set up mobile controls

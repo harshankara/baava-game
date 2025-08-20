@@ -1,6 +1,6 @@
-# THE BHAAVA GAME 🎮
+# THE BAAVA GAME 🎮
 
-A retro-style HTML5 Canvas game featuring Bhaava navigating through obstacles and collecting items.
+A retro-style HTML5 Canvas game featuring Baava navigating through obstacles and collecting items.
 
 ## 🎯 Game Features
 
@@ -21,7 +21,7 @@ A retro-style HTML5 Canvas game featuring Bhaava navigating through obstacles an
 
 ## 🚀 Play Online
 
-Play the game directly in your browser: [THE BHAAVA GAME](https://harshankara.github.io/Bhaavagame/)
+Play the game directly in your browser: [THE BAAVA GAME](https://harshankara.github.io/Baavagame/)
 
 ## 🛠️ Technology Stack
 
@@ -48,4 +48,4 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ---
 
-**Enjoy playing THE BHAAVA GAME!** 🎉
+**Enjoy playing THE BAAVA GAME!** 🎉
