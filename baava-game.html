@@ -2,12 +2,15 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, shrink-to-fit=no, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="format-detection" content="telephone=no">
-    <title>The Bhaava Game</title>
+    <!-- Additional mobile support -->
+    <meta name="msapplication-tap-highlight" content="no">
+    <meta name="theme-color" content="#111111">
+    <title>The Baava Game</title>
     <!-- Google Fonts - Press Start 2P for retro game feel -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -19,8 +22,19 @@
             -ms-user-select: none;
             user-select: none;
             -webkit-touch-callout: none;
-            touch-action: none;
+            touch-action: manipulation; /* Allows scrolling but disables double-tap zoom */
             -webkit-tap-highlight-color: transparent;
+        }
+        
+        html {
+            /* Prevent zoom on iOS Safari */
+            -webkit-text-size-adjust: 100%;
+            -ms-text-size-adjust: 100%;
+            /* Disable double-tap zoom */
+            touch-action: manipulation;
+            /* Additional cross-browser support */
+            -moz-text-size-adjust: 100%;
+            text-size-adjust: 100%;
         }
         
         body {
@@ -30,6 +44,22 @@
             background-color: #111;
             font-family: 'Press Start 2P', cursive, Arial, sans-serif;
             color: white;
+            /* Additional zoom prevention */
+            touch-action: manipulation;
+            -webkit-touch-callout: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        #game {
+            display: block;
+            /* Prevent zoom and double-tap zoom on canvas */
+            touch-action: manipulation;
+            -webkit-touch-callout: none;
+            -webkit-tap-highlight-color: transparent;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
         }
         
         .game-title {
@@ -107,15 +137,33 @@
             cursor: pointer;
             -webkit-tap-highlight-color: transparent;
             touch-action: manipulation; /* Improved touch handling */
-            /* Ensure no text or arrows are displayed */
-            font-size: 0;
-            color: transparent;
-            text-shadow: none;
             /* Hide controls initially until game starts */
             display: none;
+            /* Arrow styling - only applied when visible */
+            color: white;
+            font-size: 30px;
+            font-weight: bold;
+            align-items: center;
+            justify-content: center;
         }
         
-        /* Removed arrow styling for cleaner mobile experience */
+        .controlBtn.visible {
+            display: flex !important;
+        }
+        
+        #leftBtn::before {
+            content: '‹';
+            color: white;
+            font-size: 40px;
+            font-weight: bold;
+        }
+        
+        #rightBtn::before {
+            content: '›';
+            color: white;
+            font-size: 40px;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
@@ -126,11 +174,6 @@
         <audio id="backgroundMusic" loop>
             <source src="artifacts/chiptune.wav" type="audio/wav">
         </audio>
-        
-        <!-- Music toggle button -->
-        <button id="musicToggle" style="position: absolute; top: 10px; right: 10px; z-index: 100; padding: 8px 12px; background: rgba(0,0,0,0.7); color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px;">
-            🔊 Music
-        </button>
         
         <div id="mobileControls">
             <div id="leftBtn" class="controlBtn"></div>
@@ -168,8 +211,8 @@
             let lightFlashTimer = 0;
             let lightState = false;
             let lastTime = 0;
-            let gameState = 'start'; // start, playing, gameOver
-            let gameOverReason = "Bhaava ran out of kudi!"; // Default game over message
+            let gameState = 'start'; // start, playing, gameOver, rules
+            let gameOverReason = "Baava ran out of kudi!"; // Default game over message
             
             // Houses - village style
             let houses = []; // Will be initialized after canvas is ready
@@ -207,7 +250,7 @@
                 const baseScale = Math.min(0.5, Math.max(0.2, canvas.width / 1500));
                 
                 // Calculate equal spacing for objects
-                const totalObjects = 2;  // petti, scooter2 (house1 disabled)
+                const totalObjects = 3;  // petti, scooter2, house1 (re-enabled)
                 const verticalSpacing = canvas.height / (totalObjects + 1);
                 const rightPatchCenter = rightPatchStart + ((canvas.width - rightPatchStart) / 2);
                 
@@ -266,7 +309,7 @@
                     // Fourth object: tuktuk - start at a different position on left side
                     { 
                         type: 'tuktuk',
-                        x: roadLeft * 0.002, // Moved much more to the left (was 0.1)
+                        x: roadLeft * 0.002, // Back to original position
                         y: positions[1] - canvas.height * 0.3, // Offset from right side positions for variety
                         scale: 0.13, // Further increased size (was 0.11)
                         side: 'left',
@@ -274,17 +317,17 @@
                         faceRoad: false, // No need to flip, naturally faces right
                         rolling: false
                     },
-                    // Fifth object: house1 (replacing house2) - another position on left side - DISABLED
-                    /*{ 
+                    // Fifth object: house1 - positioned on left side within green patch
+                    { 
                         type: 'house1',
-                        x: roadLeft * 0.05, // Moved further to the left (was 0.1)
-                        y: positions[0] - canvas.height * 0.3, // Different offset for variety
-                        scale: 0.16, // Same size as the other house1
+                        x: -30, // Moved further left, outside frame
+                        y: positions[0] - canvas.height * 0.4, // Different offset for variety
+                        scale: 0.18, // Reduced size significantly (was 0.16)
                         side: 'left',
                         initialY: positions[0] - canvas.height * 0.3,
                         faceRoad: false, // No need to flip, naturally faces right
                         rolling: false
-                    }*/
+                    }
                 ];
                 
                 console.log('Road dimensions:', {roadLeft, roadWidth});
@@ -300,9 +343,11 @@
             const gifElements = {};
             const imagesToLoad = [
                 // Animated GIFs need special handling
-                { name: 'bhaavaHappy', src: 'artifacts/bhaava-happy.GIF', isGif: true },
-                { name: 'bhaavaNeutral', src: 'artifacts/bhaava-neutral.GIF', isGif: true },
-                { name: 'bhaavaSad', src: 'artifacts/bhaava-sad.GIF', isGif: true },
+                { name: 'baavaHappy', src: 'artifacts/baava-happy.GIF', isGif: true },
+                { name: 'baavaNeutral', src: 'artifacts/baava-neutral.GIF', isGif: true },
+                { name: 'baavaSad', src: 'artifacts/baava-sad.GIF', isGif: true },
+                { name: 'baavaBottle', src: 'artifacts/baava-bottle.GIF', isGif: true },
+                { name: 'baavaLeaf', src: 'artifacts/baava-leaf.GIF', isGif: true },
                 { name: 'oldmonk', src: 'artifacts/oldmonk.PNG' },
                 { name: 'leaves', src: 'artifacts/leaves.PNG' },
                 { name: 'raviAnna', src: 'artifacts/ravi-anna.GIF', isGif: true },
@@ -315,7 +360,7 @@
                 // Village objects
                 { name: 'petti', src: 'artifacts/petti.PNG' },
                 { name: 'scooter2', src: 'artifacts/scooter2.PNG' },
-                // House disabled { name: 'house1', src: 'artifacts/house1.PNG' },
+                { name: 'house1', src: 'artifacts/house1.PNG' }, // Re-enabled house1
                 { name: 'tuktuk', src: 'artifacts/tuktuk.PNG' }
             ];
             
@@ -323,8 +368,8 @@
             const player = {
                 x: 0,
                 y: 0,
-                width: 100,
-                height: 130,
+                width: 100,   // Increased from 65 for better visibility
+                height: 105,  // Increased from 70 for better visibility
                 speed: 5,
                 energy: 100,
                 direction: 0,  // -1: left, 0: still, 1: right
@@ -333,14 +378,24 @@
                 frameTimer: 0,
                 frameInterval: 100, // ms
                 isHit: false,
-                isHappy: false
+                isHappy: false,
+                isCollectingBottle: false,
+                isCollectingLeaf: false,
+                // Flashing effect when hit
+                isFlashing: false,
+                flashTimer: 0,
+                flashDuration: 1000, // Flash for 1 second
+                // 4-Lane system
+                currentLane: 1, // 0, 1, 2, 3 (left to right)
+                targetX: 0,
+                isMoving: false
             };
             
             // Game variables
             let score = 0;
             let currentRound = 1;
             let roundStartTime = 0;
-            let roundDuration = 10000; // 10 seconds per round
+            let roundDuration = 15000; // 15 seconds per round as specified
             let guruSpawnedThisRound = 0;
             
             // Round transition notification
@@ -351,7 +406,6 @@
             // Music control
             let musicEnabled = true;
             let backgroundMusic = null;
-            let musicToggleButton = null;
             
             const alcohols = [];
             const leaves = [];
@@ -389,32 +443,94 @@
             // Game progression system - calculate spawn rates based on round
             function getCollectibleSpawnRate() {
                 if (currentRound <= 5) return 0.01; // Same low rate for first 5 rounds
-                return 0.018; // Slight increase after round 5
+                // Rapid increase after round 5: exponential scaling
+                const postRound5 = currentRound - 5;
+                return Math.min(0.08, 0.018 + (postRound5 * 0.012)); // Dramatic increase
             }
             
             function getLeafSpawnRate() {
                 if (currentRound <= 5) return 0.008; // Same low rate for first 5 rounds
-                return 0.015; // Moderate increase after round 5
+                // Rapid increase after round 5: exponential scaling
+                const postRound5 = currentRound - 5;
+                return Math.min(0.06, 0.015 + (postRound5 * 0.008)); // Dramatic increase
             }
             
+            // Difficulty Scaling System according to game rules
+            
             function getEnemyCount() {
-                return Math.min(2 + currentRound - 1, 8); // Start with 2, increase by 1 each round, max 8
+                // Enemy Count per Frame based on round
+                if (currentRound <= 5) {
+                    // Gradual increase for first 5 rounds
+                    if (currentRound <= 3) return 2;        // Max 2 enemies at once
+                    else return 3;   // Max 3 enemies rounds 4-5
+                } else {
+                    // Rapid increase after round 5
+                    const postRound5 = currentRound - 5;
+                    return Math.min(12, 4 + (postRound5 * 2)); // Dramatic scaling: 4, 6, 8, 10, 12...
+                }
             }
             
             function getGuruCount() {
-                return Math.min(Math.floor((currentRound + 1) / 2), 3); // 1 guru rounds 1-2, 2 gurus rounds 3-4, etc.
+                if (currentRound <= 5) {
+                    return Math.min(Math.floor((currentRound + 1) / 2), 2); // Max 2 gurus before round 5
+                } else {
+                    // Rapid guru increase after round 5
+                    const postRound5 = currentRound - 5;
+                    return Math.min(8, 3 + postRound5); // 3, 4, 5, 6, 7, 8...
+                }
             }
             
-            // Speed progression functions
+            // Enemy Speed Scaling: enemySpeed = baseSpeed + (roundNumber * speedStep)
+            function getEnemySpeed() {
+                if (currentRound <= 5) {
+                    // Gradual increase for first 5 rounds
+                    const baseSpeed = 1.0;
+                    const speedStep = 0.15; // Moderate increase per round
+                    return baseSpeed + (currentRound * speedStep);
+                } else {
+                    // Rapid speed increase after round 5
+                    const postRound5 = currentRound - 5;
+                    const baseSpeed = 1.75; // Speed at round 5
+                    const rapidStep = 0.4; // Much faster increase per round
+                    return Math.min(8.0, baseSpeed + (postRound5 * rapidStep)); // Cap at very fast speed
+                }
+            }
+            
+            // Enemy Spawn Rate Scaling: spawnRate = baseRate + (roundNumber * rateStep)
+            function getEnemySpawnRate() {
+                if (currentRound <= 5) {
+                    // Gradual increase for first 5 rounds
+                    const baseRate = 0.008;
+                    const rateStep = 0.002;
+                    return baseRate + (currentRound * rateStep);
+                } else {
+                    // Rapid spawn rate increase after round 5
+                    const postRound5 = currentRound - 5;
+                    const baseRate = 0.018; // Rate at round 5
+                    const rapidStep = 0.008; // Much faster increase per round
+                    return Math.min(0.1, baseRate + (postRound5 * rapidStep)); // Very high spawn rate cap
+                }
+            }
+            
+            // Speed progression functions for collectibles
             function getObjectSpeed() {
-                const baseSpeed = 1.5; // Reduced from 3
-                const speedMultiplier = 1 + (currentRound - 1) * 0.15; // Reduced from 0.3 to 0.15
-                return baseSpeed * speedMultiplier;
+                if (currentRound <= 5) {
+                    // Gradual increase for first 5 rounds
+                    const baseSpeed = 1.5;
+                    const speedMultiplier = 1 + (currentRound - 1) * 0.1;
+                    return baseSpeed * speedMultiplier;
+                } else {
+                    // Rapid object speed increase after round 5
+                    const postRound5 = currentRound - 5;
+                    const baseSpeed = 2.0; // Speed at round 5
+                    const rapidMultiplier = 1 + (postRound5 * 0.3); // Much faster scaling
+                    return Math.min(10.0, baseSpeed * rapidMultiplier); // Cap at very fast speed
+                }
             }
             
             function getLeafSpeed() {
-                const baseSpeed = 1.2; // Reduced from 2
-                const speedMultiplier = 1 + (currentRound - 1) * 0.12; // Reduced from 0.25 to 0.12
+                const baseSpeed = 1.2;
+                const speedMultiplier = 1 + (currentRound - 1) * 0.12;
                 return baseSpeed * speedMultiplier;
             }
             
@@ -472,21 +588,13 @@
             // Music control functions
             function initMusic() {
                 backgroundMusic = document.getElementById('backgroundMusic');
-                musicToggleButton = document.getElementById('musicToggle');
                 
                 // Set initial volume
                 backgroundMusic.volume = 0.3;
-                
-                // Add click event to toggle button
-                musicToggleButton.addEventListener('click', toggleMusic);
-                
-                // Update button text
-                updateMusicButtonText();
             }
             
             function toggleMusic() {
                 musicEnabled = !musicEnabled;
-                updateMusicButtonText();
                 
                 if (gameState === 'playing') {
                     if (musicEnabled) {
@@ -497,15 +605,12 @@
                 }
             }
             
-            function updateMusicButtonText() {
-                if (musicToggleButton) {
-                    musicToggleButton.textContent = musicEnabled ? '🔊 Music' : '🔇 Music';
-                }
-            }
-            
             function playBackgroundMusic() {
-                if (backgroundMusic && musicEnabled) {
-                    backgroundMusic.currentTime = 0; // Reset to beginning
+                if (backgroundMusic && musicEnabled && gameState === 'playing') {
+                    // Only reset if not already playing
+                    if (backgroundMusic.paused || backgroundMusic.ended) {
+                        backgroundMusic.currentTime = 0;
+                    }
                     backgroundMusic.play().catch(e => {
                         console.log('Could not play music:', e);
                     });
@@ -571,7 +676,7 @@
                         console.log('Village object images loaded?');
                         console.log('petti:', !!images['petti']);
                         console.log('scooter2:', !!images['scooter2']);
-                        // House disabled console.log('house1:', !!images['house1']);
+                        console.log('house1:', !!images['house1']); // Re-enabled house1 debug
                         console.log('tuktuk:', !!images['tuktuk']);
                         console.log('guru:', !!images['guru']);
                         console.log('All image keys:', Object.keys(images));
@@ -677,15 +782,37 @@
                 // Right side grass
                 ctx.fillRect(roadLeft + roadWidth, 0, canvas.width - (roadLeft + roadWidth), canvas.height);
                 
-                // Add grass texture (scattered darker green dots)
+                // Add enhanced grass texture with variety
                 for (let x = 0; x < canvas.width; x += pixelSize * 2) {
                     for (let y = 0; y < canvas.height; y += pixelSize * 2) {
                         // Only draw on grass areas
                         if (x < roadLeft || x > roadLeft + roadWidth) {
-                            // Create a deterministic pattern based on position
-                            if ((x + y) % 7 === 0) {
+                            // Create multiple texture patterns
+                            const pattern = (x + y) % 21;
+                            
+                            // Dense grass texture
+                            if (pattern < 3) {
                                 ctx.fillStyle = darkGrassColor;
                                 ctx.fillRect(x, y, pixelSize, pixelSize);
+                            }
+                            // Lighter grass highlights
+                            else if (pattern === 5) {
+                                ctx.fillStyle = '#239B56';
+                                ctx.fillRect(x, y, pixelSize/2, pixelSize/2);
+                            }
+                            // Small bushes/vegetation
+                            else if (pattern === 8) {
+                                ctx.fillStyle = '#145A32';
+                                ctx.fillRect(x, y, pixelSize * 1.5, pixelSize);
+                            }
+                            // Tiny flowers (occasional color spots)
+                            else if (pattern === 15) {
+                                ctx.fillStyle = '#E74C3C';
+                                ctx.fillRect(x + pixelSize/2, y + pixelSize/2, pixelSize/3, pixelSize/3);
+                            }
+                            else if (pattern === 18) {
+                                ctx.fillStyle = '#F39C12';
+                                ctx.fillRect(x + pixelSize/3, y + pixelSize/4, pixelSize/4, pixelSize/4);
                             }
                         }
                     }
@@ -866,16 +993,23 @@
                     }
                 }
                 
-                // Draw straight road
+                // Draw straight road with gradient effect
                 const baseRoadColor = '#8B4513';  // Brown road color
                 const darkMudColor = '#654321';   // Darker brown for texture
                 const trackColor = '#704214';     // Track color
                 
-                // Draw the main road
-                ctx.fillStyle = baseRoadColor;
+                // Create road gradient for depth effect
+                const roadGradient = ctx.createLinearGradient(roadLeft, 0, roadLeft + roadWidth, 0);
+                roadGradient.addColorStop(0, '#654321');    // Darker edges
+                roadGradient.addColorStop(0.2, baseRoadColor);
+                roadGradient.addColorStop(0.8, baseRoadColor);
+                roadGradient.addColorStop(1, '#654321');    // Darker edges
+                
+                // Draw the main road with gradient
+                ctx.fillStyle = roadGradient;
                 ctx.fillRect(roadLeft, 0, roadWidth, canvas.height);
                 
-                // Add road texture
+                // Add enhanced road texture
                 for (let x = roadLeft; x < roadLeft + roadWidth; x += pixelSize * 3) {
                     for (let y = 0; y < canvas.height; y += pixelSize * 3) {
                         // Create a stable pattern based on position
@@ -883,10 +1017,15 @@
                             ctx.fillStyle = darkMudColor;
                             ctx.fillRect(x, y, pixelSize, pixelSize);
                         }
+                        // Add occasional pebbles/stones
+                        if ((Math.floor(x/pixelSize) + Math.floor(y/pixelSize)) % 13 === 0) {
+                            ctx.fillStyle = '#8B7355';
+                            ctx.fillRect(x, y, pixelSize/2, pixelSize/2);
+                        }
                     }
                 }
                 
-                // Add track marks
+                // Add track marks (vehicle tire tracks)
                 for (let y = Math.floor(animationFrame % (pixelSize * 10)); y < canvas.height; y += pixelSize * 10) {
                     ctx.fillStyle = trackColor;
                     ctx.fillRect(roadLeft + roadWidth/3, y, pixelSize * 2, pixelSize);
@@ -960,7 +1099,7 @@
                 });
                 
                 // Add decorative poles along the road (Indian village fair style)
-                const poleSpacing = 200; // Space between poles
+                const poleSpacing = 350; // Increased spacing for fewer poles (about 2 per frame)
                 const poleWidth = pixelSize * 3; // Width of each pole
                 const poleHeight = 120; // Height of each pole
                 
@@ -970,17 +1109,31 @@
                 
                 // Draw poles on both sides of the road - adding poles above and below screen to ensure seamless appearance
                 for (let y = poleOffset - poleSpacing; y < canvas.height + poleSpacing; y += poleSpacing) {
-                    // Left side pole
+                    // Draw pole shadows first (cast towards right/road)
+                    ctx.fillStyle = 'rgba(0, 0, 0, 0.3)'; // Semi-transparent black shadow
+                    const shadowOffsetX = pixelSize * 2;
+                    const shadowOffsetY = pixelSize;
+                    
+                    // Left pole shadow
+                    ctx.fillRect(roadLeft - poleWidth + shadowOffsetX, y + shadowOffsetY, poleWidth, poleHeight);
+                    // Right pole shadow
+                    ctx.fillRect(roadLeft + roadWidth + shadowOffsetX, y + shadowOffsetY, poleWidth, poleHeight);
+                    
+                    // Now draw the actual poles
                     ctx.fillStyle = '#8B4513'; // Brown wooden pole
-                    ctx.fillRect(roadLeft - poleWidth - 10, y, poleWidth, poleHeight);
+                    ctx.fillRect(roadLeft - poleWidth, y, poleWidth, poleHeight);
                     
                     // Right side pole
-                    ctx.fillRect(roadLeft + roadWidth + 10, y, poleWidth, poleHeight);
+                    ctx.fillRect(roadLeft + roadWidth, y, poleWidth, poleHeight);
                     
-                    // Top decorative element for poles (like a lamp post)
+                    // Top decorative element for poles (like a lamp post) - with shadows
+                    ctx.fillStyle = 'rgba(0, 0, 0, 0.3)'; // Shadow for tops
+                    ctx.fillRect(roadLeft - poleWidth - 5 + shadowOffsetX, y + shadowOffsetY, poleWidth + 10, 5);
+                    ctx.fillRect(roadLeft + roadWidth - 5 + shadowOffsetX, y + shadowOffsetY, poleWidth + 10, 5);
+                    
                     ctx.fillStyle = '#A0522D'; // Sienna color for top decoration
-                    ctx.fillRect(roadLeft - poleWidth - 15, y, poleWidth + 10, 5); // Left pole top
-                    ctx.fillRect(roadLeft + roadWidth + 5, y, poleWidth + 10, 5); // Right pole top
+                    ctx.fillRect(roadLeft - poleWidth - 5, y, poleWidth + 10, 5); // Left pole top
+                    ctx.fillRect(roadLeft + roadWidth - 5, y, poleWidth + 10, 5); // Right pole top
                 }
                 
                 // Draw vertical serial lights along the poles (Indian fair style)
@@ -991,8 +1144,8 @@
                 
                 for (let y = poleOffset - poleSpacing; y < canvas.height + poleSpacing; y += poleSpacing) {
                     // Draw wires along each side of the road vertically connecting poles
-                    const leftPoleX = roadLeft - poleWidth/2 - 10;
-                    const rightPoleX = roadLeft + roadWidth + poleWidth/2 + 10;
+                    const leftPoleX = roadLeft - poleWidth/2; // Updated to match new pole position
+                    const rightPoleX = roadLeft + roadWidth + poleWidth/2; // Updated to match new pole position
                     const startY = y + 10; // Attach to pole top
                     const endY = y + poleSpacing; // Connect to next pole
                     
@@ -1021,7 +1174,7 @@
                     ctx.stroke();
                     
                     // Add flashing lights along the left wire
-                    const numLights = 5; // Number of lights on each wire
+                    const numLights = 8; // Increased number of lights on each vertical wire (was 5)
                     const lightSize = 4;
                     const lightColors = ['#FFD700', '#FF6347', '#4169E1', '#32CD32', '#FF1493']; // Gold, tomato, blue, green, pink
                     
@@ -1064,16 +1217,16 @@
                     }
                 }
                 
-                // Add horizontal serial wire lights connecting poles across the road (only 2 per screen)
-                // Select only 2 sets of poles to connect horizontally
-                const horizontalWireSpacing = poleSpacing * 3; // Space them out more than the poles
+                // Add horizontal serial wire lights connecting every pole across the road
+                // Connect all poles horizontally since we reduced poles per frame
+                const horizontalWireSpacing = poleSpacing; // Connect every pole (was poleSpacing * 3)
                 const horizontalWireOffset = (-animationFrame % horizontalWireSpacing);
                 
                 for (let y = horizontalWireOffset; y < canvas.height; y += horizontalWireSpacing) {
                     // Only draw if the horizontal wire would be visible
                     if (y > -20 && y < canvas.height + 20) {
-                        const leftPoleX = roadLeft - poleWidth/2 - 10;
-                        const rightPoleX = roadLeft + roadWidth + poleWidth/2 + 10;
+                        const leftPoleX = roadLeft - poleWidth/2; // Updated to match new pole position
+                        const rightPoleX = roadLeft + roadWidth + poleWidth/2; // Updated to match new pole position
                         const wireY = y + 30; // Position near the top of poles but not at the very top
                         
                         // Draw the horizontal wire with a nice curve
@@ -1089,7 +1242,7 @@
                         ctx.stroke();
                         
                         // Add decorative lights along the horizontal wire
-                        const numLights = 10; // More lights for the horizontal wire
+                        const numLights = 6; // Reduced horizontal lights (was 8)
                         const lightSize = 5;
                         const lightColors = ['#FFD700', '#FF6347', '#4169E1', '#32CD32', '#FF1493']; // Gold, tomato, blue, green, pink
                         
@@ -1163,12 +1316,16 @@
                 ctx.translate(Math.floor(player.x), Math.floor(player.y));
                 
                 // Choose between neutral, happy and sad based on player state
-                let imageKey = 'bhaavaNeutral'; // Default state is neutral
+                let imageKey = 'baavaNeutral'; // Default state is neutral
                 
                 if (player.isHit) {
-                    imageKey = 'bhaavaSad'; // Use sad when hit by enemy
+                    imageKey = 'baavaSad'; // Use sad when hit by enemy
+                } else if (player.isCollectingBottle) {
+                    imageKey = 'baavaBottle'; // Use bottle when collecting bottles
+                } else if (player.isCollectingLeaf) {
+                    imageKey = 'baavaLeaf'; // Use leaf when collecting leaves
                 } else if (player.isHappy) {
-                    imageKey = 'bhaavaHappy'; // Use happy when collecting items
+                    imageKey = 'baavaHappy'; // Use happy when collecting items (fallback)
                 }
                 
                 // Get both static and animated versions
@@ -1188,10 +1345,25 @@
                 const destX = player.x - player.width/2;
                 const destY = player.y - player.height/2 + runningEffect;
                 
+                // Apply flashing effect
+                if (player.isFlashing) {
+                    // Create flashing effect by alternating opacity
+                    const flashPhase = Math.floor((Date.now() - player.flashTimer) / 150) % 2; // Flash every 150ms
+                    ctx.globalAlpha = flashPhase === 0 ? 0.3 : 1.0; // Alternate between dim and normal
+                }
+                
                 // If we have a GIF element, position and show it
                 if (playerGif && document.getElementById('gif-container')) {
                     // Position and size the GIF element where it should appear on canvas
                     updateGifPosition(imageKey, destX, destY, player.width, player.height);
+                    
+                    // Apply flashing to GIF element as well
+                    if (player.isFlashing) {
+                        const flashPhase = Math.floor((Date.now() - player.flashTimer) / 150) % 2;
+                        playerGif.style.opacity = flashPhase === 0 ? '0.3' : '1.0';
+                    } else {
+                        playerGif.style.opacity = '1.0'; // Normal opacity when not flashing
+                    }
                     
                     // Draw placeholder rectangle with low opacity to mark position
                     ctx.fillStyle = 'rgba(255,255,255,0.01)';  // Almost invisible placeholder
@@ -1212,17 +1384,20 @@
                     ctx.fillRect(-player.width/2, -player.height/2 + runningEffect, player.width, player.height);
                 }
                 
+                // Reset alpha after flashing effect
+                ctx.globalAlpha = 1.0;
+                
                 ctx.restore();
             }
             
-            // Draw kudi meter (energy bar)
+            // Draw kudi meter (energy bar) with all UI elements
             function drawEnergyBar() {
                 const barWidth = 200;
                 const barHeight = 20;
                 const x = 20;
-                const y = 20; // Back to original position
+                const y = 30;
                 
-                // Background
+                // Background of energy bar
                 ctx.fillStyle = '#333';
                 ctx.fillRect(x, y, barWidth, barHeight);
                 
@@ -1236,20 +1411,50 @@
                 ctx.lineWidth = 2;
                 ctx.strokeRect(x, y, barWidth, barHeight);
                 
-                // Text inside the bar (same font as homepage)
+                // "Kudi Meter" text inside the bar - increased size
                 ctx.fillStyle = '#fff';
-                ctx.font = "12px 'Press Start 2P', monospace"; // Changed to Press Start 2P
-                ctx.fillText(`Kudi: ${Math.floor(player.energy)}%`, x + 10, y + 15); // Inside the bar
+                ctx.font = "12px 'Press Start 2P', monospace"; // Increased from 9px to 12px
+                ctx.fillText(`Kudi Meter: ${Math.floor(player.energy)}%`, x + 5, y + 16);
                 
-                // Score display (same font as homepage)
+                // UI elements positioned next to Kudi meter (on the road area)
+                const uiStartX = x + barWidth + 15; // Reduced spacing from 40 to 15 - much closer to meter
+                
+                // Score display - positioned next to Kudi meter
                 ctx.fillStyle = '#fff';
-                ctx.font = "12px 'Press Start 2P', monospace"; // Changed to Press Start 2P
-                ctx.fillText(`Score: ${score}`, canvas.width - 120, y + 15);
+                ctx.font = "14px 'Press Start 2P', monospace"; // Increased size for visibility
+                ctx.textAlign = 'left';
+                ctx.fillText(`Score: ${score}`, uiStartX, y + 5);
                 
-                // Round display
-                ctx.fillStyle = '#FFD700'; // Gold color for round
-                ctx.font = "12px 'Press Start 2P', monospace"; // Changed to Press Start 2P to match other text
-                ctx.fillText(`Roundu: ${currentRound}`, canvas.width - 120, y + 35);
+                // Round display (next to Score)
+                ctx.fillStyle = '#fff';
+                ctx.font = "14px 'Press Start 2P', monospace"; // Increased size for visibility
+                ctx.textAlign = 'left';
+                ctx.fillText(`Round: ${currentRound}`, uiStartX, y + 25);
+                
+                // Music toggle (next to Round) - show checkbox state
+                const musicY = y + 45;
+                ctx.fillStyle = '#fff';
+                ctx.font = "12px 'Press Start 2P', monospace"; // Same as other text
+                ctx.textAlign = 'left';
+                ctx.fillText('Music: ', uiStartX, musicY);
+
+                // Draw even larger checkbox symbol separately
+                ctx.font = "36px 'Press Start 2P', monospace"; // Even larger font for checkbox
+                const musicSymbol = musicEnabled ? '☑' : '☐'; // Checked or unchecked
+                ctx.fillText(musicSymbol, uiStartX + 85, musicY + 8); // Adjust vertical position for alignment
+                
+                // Music checkbox (invisible but still clickable for functionality)
+                const checkboxX = uiStartX + 85; // Position near the checkmark
+                const checkboxY = musicY - 15;
+                const checkboxSize = 20; // Larger for easier clicking
+                
+                // Store checkbox position for click detection
+                window.musicCheckbox = {
+                    x: checkboxX,
+                    y: checkboxY,
+                    width: checkboxSize,
+                    height: checkboxSize
+                };
             }
             
             // Draw round transition notification
@@ -1411,14 +1616,34 @@
             
             // Update player position and state
             function updatePlayer(deltaTime) {
-                // Move player based on direction
-                player.x += player.speed * player.direction;
+                // 4-Lane Movement System
+                const laneWidth = roadWidth / 4;
+                const lanes = [
+                    roadLeft + laneWidth * 0.5,     // Lane 0 (leftmost)
+                    roadLeft + laneWidth * 1.5,     // Lane 1
+                    roadLeft + laneWidth * 2.5,     // Lane 2
+                    roadLeft + laneWidth * 3.5      // Lane 3 (rightmost)
+                ];
                 
-                // Keep player within road boundaries
-                if (player.x < roadLeft + player.width/2) {
-                    player.x = roadLeft + player.width/2;
-                } else if (player.x > roadLeft + roadWidth - player.width/2) {
-                    player.x = roadLeft + roadWidth - player.width/2;
+                // Set target position based on current lane
+                player.targetX = lanes[player.currentLane];
+                
+                // Smoothly move to target position
+                const moveSpeed = 12; // Fast lane switching
+                if (Math.abs(player.x - player.targetX) > 2) {
+                    if (player.x < player.targetX) {
+                        player.x += moveSpeed;
+                        player.direction = 1;
+                        player.isMoving = true;
+                    } else if (player.x > player.targetX) {
+                        player.x -= moveSpeed;
+                        player.direction = -1;
+                        player.isMoving = true;
+                    }
+                } else {
+                    player.x = player.targetX; // Snap to lane center
+                    player.direction = 0;
+                    player.isMoving = false;
                 }
                 
                 // Update animation frame (used for movement bobbing only)
@@ -1428,41 +1653,113 @@
                     player.frameX = (player.frameX + 1) % player.frameCount;
                 }
                 
-                // Update energy
-                if (player.energy > 0) {
-                    player.energy -= 0.05;  // Slowly decrease energy
+                // Update flashing effect
+                if (player.isFlashing) {
+                    if (Date.now() - player.flashTimer > player.flashDuration) {
+                        player.isFlashing = false; // Stop flashing after duration
+                    }
                 }
+                
+                // Update energy
+                // Energy only decreases when hit by enemies, not over time
                 
                 if (player.energy <= 0 && gameState === 'playing') {
                     gameState = 'gameOver';
-                    gameOverReason = "Bhaava ran out of kudi!";
+                    gameOverReason = "Baava ran out of kudi!";
                     stopBackgroundMusic(); // Stop music when game ends
+                    
+                    // Hide mobile controls on game over
+                    if (isMobile) {
+                        const leftBtn = document.getElementById('leftBtn');
+                        const rightBtn = document.getElementById('rightBtn');
+                        leftBtn.classList.remove('visible');
+                        rightBtn.classList.remove('visible');
+                    }
+                    
                     console.log("Game Over - Out of kudi");
                 }
             }
             
-            // Spawn alcohol bottles
-            function spawnAlcohol() {
+            // Unified collectible spawning system (50% leaves, 50% bottles)
+            function spawnCollectibles() {
                 if (Math.random() < getCollectibleSpawnRate()) {  // Dynamic spawn rate based on round
-                    const width = 90;
-                    const height = 60;
+                    // Determine type: 50% chance for leaves, 50% for bottles
+                    const isLeaf = Math.random() < 0.5;
                     
-                    // Try multiple times to find a clear position
-                    for (let attempts = 0; attempts < 10; attempts++) {
-                        const x = roadLeft + width/2 + Math.random() * (roadWidth - width);
-                        const y = -50;
-                        
-                        if (isPositionClear(x, y, width, height)) {
-                            const alcohol = {
-                                x: x,
-                                y: y,
-                                speed: getObjectSpeed() + Math.random() * 2,
-                                width: width,
-                                height: height
-                            };
-                            alcohols.push(alcohol);
-                            break;
-                        }
+                    if (isLeaf) {
+                        spawnLeaf();
+                    } else {
+                        spawnBottle();
+                    }
+                }
+            }
+            
+            // Spawn alcohol bottles (50% of all collectibles)
+            function spawnBottle() {
+                const width = 90;
+                const height = 60;
+                
+                // Try multiple times to find a clear position in a random lane
+                for (let attempts = 0; attempts < 10; attempts++) {
+                    // Use the same 4-lane system as player
+                    const laneWidth = roadWidth / 4;
+                    const lanes = [
+                        roadLeft + laneWidth * 0.5,     // Lane 0 (leftmost)
+                        roadLeft + laneWidth * 1.5,     // Lane 1
+                        roadLeft + laneWidth * 2.5,     // Lane 2
+                        roadLeft + laneWidth * 3.5      // Lane 3 (rightmost)
+                    ];
+                    
+                    // Pick a random lane for bottle spawn
+                    const randomLane = Math.floor(Math.random() * lanes.length);
+                    const x = lanes[randomLane];
+                    const y = -50;
+                    
+                    if (isPositionClear(x, y, width, height)) {
+                        const alcohol = {
+                            x: x,
+                            y: y,
+                            speed: getObjectSpeed() + Math.random() * 2,
+                            width: width,
+                            height: height
+                        };
+                        alcohols.push(alcohol);
+                        break;
+                    }
+                }
+            }
+            
+            // Spawn leaves (50% of all collectibles)
+            function spawnLeaf() {
+                const width = 70;
+                const height = 50;
+                
+                // Try multiple times to find a clear position in a random lane
+                for (let attempts = 0; attempts < 10; attempts++) {
+                    // Use the same 4-lane system as player
+                    const laneWidth = roadWidth / 4;
+                    const lanes = [
+                        roadLeft + laneWidth * 0.5,     // Lane 0 (leftmost)
+                        roadLeft + laneWidth * 1.5,     // Lane 1
+                        roadLeft + laneWidth * 2.5,     // Lane 2
+                        roadLeft + laneWidth * 3.5      // Lane 3 (rightmost)
+                    ];
+                    
+                    // Pick a random lane for leaf spawn
+                    const randomLane = Math.floor(Math.random() * lanes.length);
+                    const x = lanes[randomLane];
+                    const y = -50;
+                    
+                    if (isPositionClear(x, y, width, height)) {
+                        const leaf = {
+                            x: x,
+                            y: y,
+                            speed: getObjectSpeed() + Math.random() * 2,
+                            width: width,
+                            height: height
+                        };
+                        leaves.push(leaf);
+                        break;
                     }
                 }
             }
@@ -1487,13 +1784,13 @@
                         alcohols[i].x > player.x - player.width/2 && 
                         alcohols[i].x < player.x + player.width/2
                     ) {
-                        // Player collected alcohol
-                        player.energy = Math.min(100, player.energy + 15);  // Increase energy
-                        score += 10;  // Increase score
-                        player.isHappy = true; // Make player happy
+                        // Player collected alcohol (bottle)
+                        player.energy = Math.min(100, player.energy + 5);  // Restores +5% Energy
+                        score += 20;  // Adds +20 points to score
+                        player.isCollectingBottle = true; // Make player show bottle collection animation
                         
-                        // Reset isHappy after a short delay
-                        setTimeout(() => { player.isHappy = false; }, 1000);
+                        // Reset isCollectingBottle after a short delay
+                        setTimeout(() => { player.isCollectingBottle = false; }, 1000);
                         
                         alcohols.splice(i, 1);
                         continue;
@@ -1502,34 +1799,6 @@
                     // Remove if off screen
                     if (alcohols[i].y > canvas.height + 50) {
                         alcohols.splice(i, 1);
-                    }
-                }
-            }
-            
-            // Spawn leaf obstacles
-            function spawnLeaves() {
-                if (Math.random() < getLeafSpawnRate()) {  // Dynamic spawn rate based on round
-                    const width = 45;
-                    const height = 45;
-                    
-                    // Try multiple times to find a clear position
-                    for (let attempts = 0; attempts < 10; attempts++) {
-                        const x = roadLeft + width/2 + Math.random() * (roadWidth - width);
-                        const y = -50;
-                        
-                        if (isPositionClear(x, y, width, height)) {
-                            const leaf = {
-                                x: x,
-                                y: y,
-                                speed: getLeafSpeed() + Math.random() * 3,
-                                rotation: Math.random() * Math.PI * 2,
-                                rotationSpeed: (Math.random() - 0.5) * 0.1,
-                                width: width,
-                                height: height
-                            };
-                            leaves.push(leaf);
-                            break;
-                        }
                     }
                 }
             }
@@ -1556,12 +1825,12 @@
                         leaves[i].x < player.x + player.width/2
                     ) {
                         // Player collected leaf
-                        player.energy = Math.min(100, player.energy + 10);  // Increase energy
-                        score += 5;  // Increase score
-                        player.isHappy = true; // Make player happy
+                        player.energy = Math.min(100, player.energy + 2);  // Restores +2% Energy
+                        score += 10;  // Adds +10 points to score
+                        player.isCollectingLeaf = true; // Make player show leaf collection animation
                         
-                        // Reset isHappy after a short delay
-                        setTimeout(() => { player.isHappy = false; }, 1000);
+                        // Reset isCollectingLeaf after a short delay
+                        setTimeout(() => { player.isCollectingLeaf = false; }, 1000);
                         
                         leaves.splice(i, 1);
                         continue;
@@ -1577,18 +1846,29 @@
             // Spawn enemy characters
             // Define different enemy types
             const enemyTypes = [
-                { name: 'raviAnna', type: 'raviAnna', speed: 1.2, width: 75, height: 95 }, // Reduced from 2.5
-                { name: 'char1', type: 'char1', speed: 1.3, width: 75, height: 95 }, // Reduced from 3.0
-                { name: 'char2', type: 'char2', speed: 1.4, width: 80, height: 100 }, // Reduced from 3.5
-                { name: 'char3', type: 'char3', speed: 1.3, width: 75, height: 95 }, // Reduced from 3.0
-                { name: 'char4', type: 'char4', speed: 1.35, width: 75, height: 95 }, // Reduced from 3.2
-                { name: 'char5', type: 'char5', speed: 1.25, width: 80, height: 100 }, // Reduced from 2.8
-                { name: 'Guru', type: 'guru', speed: 1.6, width: 85, height: 110, isDeadly: true } // Reduced from 4.0 - Crucial character - ends game on collision
+                { name: 'raviAnna', type: 'raviAnna', speed: 1.2, width: 85, height: 110 }, // Increased height for Ravi Anna
+                { name: 'char1', type: 'char1', speed: 1.3, width: 85, height: 90 }, // Reduced from player size
+                { name: 'char2', type: 'char2', speed: 1.4, width: 85, height: 90 }, // Reduced from player size
+                { name: 'char3', type: 'char3', speed: 1.3, width: 85, height: 90 }, // Reduced from player size
+                { name: 'char4', type: 'char4', speed: 1.35, width: 85, height: 90 }, // Reduced from player size
+                { name: 'char5', type: 'char5', speed: 1.25, width: 85, height: 90 }, // Reduced from player size
+                { name: 'Guru', type: 'guru', speed: 1.6, width: 85, height: 90, isDeadly: false } // Reduced from player size
             ];
             
-            let lastEnemyTypeIndex = -1; // Track last spawned enemy type to avoid repetition
+            let lastEnemyTypeIndex = -1; // Track current position in enemy spawn order
             
             function spawnEnemies() {
+                // Don't spawn enemies until the first collectible reaches near the bottom
+                // This ensures players always have time to collect the first items
+                const firstCollectibleNearBottom = 
+                    (alcohols.length > 0 && alcohols[0].y > canvas.height * 0.7) ||
+                    (leaves.length > 0 && leaves[0].y > canvas.height * 0.7) ||
+                    (alcohols.length === 0 && leaves.length === 0 && roundStartTime > 0 && (Date.now() - roundStartTime) > 8000);
+                
+                if (!firstCollectibleNearBottom) {
+                    return;
+                }
+                
                 // Check current enemy counts on screen
                 const currentEnemyCount = enemies.filter(e => e.type !== 'guru').length;
                 const currentGuruCount = enemies.filter(e => e.type === 'guru').length;
@@ -1602,36 +1882,46 @@
                     return;
                 }
                 
-                if (Math.random() < 0.008) {  // Lower base spawn probability for better balance
-                    // Get a random enemy type, avoiding the same type twice in a row
+                // Use the new difficulty-scaled spawn rate
+                if (Math.random() < getEnemySpawnRate()) {
                     let typeIndex;
                     
-                    // Try to spawn guru if we haven't reached the limit
-                    if (currentGuruCount < maxGurus && Math.random() < 0.2) {
-                        // Spawn guru (assuming it's the last enemy in the array)
-                        typeIndex = enemyTypes.length - 1;
-                    } else if (currentEnemyCount < maxEnemies) {
-                        // Spawn regular enemy
-                        do {
-                            typeIndex = Math.floor(Math.random() * (enemyTypes.length - 1)); // Exclude guru
-                        } while (typeIndex === lastEnemyTypeIndex);
+                    // Check if we can spawn more enemies (regular + guru combined)
+                    const totalCurrentEnemies = enemies.length;
+                    const maxTotalEnemies = getEnemyCount() + getGuruCount();
+                    
+                    if (totalCurrentEnemies < maxTotalEnemies) {
+                        // Spawn enemies in sequential order: Ravi Anna → Char1 → Char2 → Char3 → Char4 → Char5 → Guru → repeat
+                        lastEnemyTypeIndex = (lastEnemyTypeIndex + 1) % enemyTypes.length; // Include guru, cycle through all 0-6
+                        typeIndex = lastEnemyTypeIndex;
                     } else {
                         return; // Can't spawn any more enemies this round
                     }
                     
-                    lastEnemyTypeIndex = typeIndex;
+                    // lastEnemyTypeIndex is already set above for sequential spawning
                     const enemyType = enemyTypes[typeIndex];
                     
-                    // Try multiple times to find a clear position
+                    // Try multiple times to find a clear position in a random lane
                     for (let attempts = 0; attempts < 10; attempts++) {
-                        const x = roadLeft + enemyType.width/2 + Math.random() * (roadWidth - enemyType.width);
+                        // Use the same 4-lane system as player
+                        const laneWidth = roadWidth / 4;
+                        const lanes = [
+                            roadLeft + laneWidth * 0.5,     // Lane 0 (leftmost)
+                            roadLeft + laneWidth * 1.5,     // Lane 1
+                            roadLeft + laneWidth * 2.5,     // Lane 2
+                            roadLeft + laneWidth * 3.5      // Lane 3 (rightmost)
+                        ];
+                        
+                        // Pick a random lane for enemy spawn
+                        const randomLane = Math.floor(Math.random() * lanes.length);
+                        const x = lanes[randomLane];
                         const y = -50;
                         
                         if (isPositionClear(x, y, enemyType.width, enemyType.height)) {
                             const enemy = {
                                 x: x,
                                 y: y,
-                                speed: enemyType.speed * (1 + (currentRound - 1) * 0.1), // Reduced from 0.2 to 0.1 - increase enemy speed by 10% each round
+                                speed: getEnemySpeed(),
                                 type: enemyType.type,
                                 width: enemyType.width,
                                 height: enemyType.height,
@@ -1664,22 +1954,39 @@
                         enemies[i].x > player.x - player.width/2 && 
                         enemies[i].x < player.x + player.width/2
                     ) {
-                        // Check if it's the deadly guru character
+                        // Debug logging for collision
+                        console.log(`Collision with ${enemies[i].type}, isDeadly: ${enemies[i].isDeadly}`);
+                        
+                        // Check if it's the deadly guru character (should not happen now)
                         if (enemies[i].isDeadly) {
                             // Game over immediately if colliding with guru
                             gameState = 'gameOver';
                             gameOverReason = "Guru caught you!";
                             stopBackgroundMusic(); // Stop music when game ends
+                            
+                            // Hide mobile controls on game over
+                            if (isMobile) {
+                                const leftBtn = document.getElementById('leftBtn');
+                                const rightBtn = document.getElementById('rightBtn');
+                                leftBtn.classList.remove('visible');
+                                rightBtn.classList.remove('visible');
+                            }
+                            
                             enemies.splice(i, 1);
                             continue;
                         } else {
-                            // Player hit regular enemy - different damage for different enemies
-                            let damage = 20; // Default damage
-                            if (enemies[i].type === 'raviAnna') {
-                                damage = 30; // Ravi Anna does more damage
+                            // Player hit regular enemy - damage based on enemy type
+                            let damage = 35; // Default damage for most enemies
+                            if (enemies[i].type === 'guru' || enemies[i].type === 'raviAnna') {
+                                damage = 50; // Guru and Ravi Anna do -50% Energy
                             }
+                            console.log(`Taking ${damage} damage from ${enemies[i].type}. Energy: ${player.energy} -> ${Math.max(0, player.energy - damage)}`);
                             player.energy = Math.max(0, player.energy - damage);
                             player.isHit = true;
+                            
+                            // Start flashing effect
+                            player.isFlashing = true;
+                            player.flashTimer = Date.now();
                             
                             // Reset isHit after a short delay
                             setTimeout(() => { player.isHit = false; }, 1000);
@@ -1826,10 +2133,10 @@
             
             // Draw start screen
             function drawStartScreen() {
-                // Dark tinted background
+                // Darker tinted background
                 const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
-                gradient.addColorStop(0, 'rgba(0, 0, 0, 0.8)'); // Dark black tint
-                gradient.addColorStop(1, 'rgba(20, 20, 20, 0.9)'); // Darker bottom
+                gradient.addColorStop(0, 'rgba(0, 0, 0, 0.7)'); // Increased black tint (was 0.3)
+                gradient.addColorStop(1, 'rgba(20, 20, 20, 0.8)'); // Increased bottom tint (was 0.4)
                 ctx.fillStyle = gradient;
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
                 
@@ -1843,25 +2150,25 @@
                 const flashOn = Math.floor(Date.now() / 600) % 2 === 0; // Flash every 600ms
                 const glowIntensity = flashOn ? 20 : 5;
                 
-                // "THE" - Smaller than BHAAVA
+                // "THE" - Smaller than BAAVA
                 ctx.fillStyle = '#FFFFFF'; // White
                 ctx.font = "40px 'Press Start 2P', monospace"; // Reduced from 48px to 40px
                 ctx.shadowColor = flashOn ? '#00FFFF' : '#FFFFFF'; // Cyan glow when flashing
                 ctx.shadowBlur = glowIntensity;
                 ctx.fillText('THE', centerX, currentY);
                 
-                currentY += 70; // Spacing above BHAAVA
+                currentY += 70; // Spacing above BAAVA
                 
-                // "BHAAVA" - Largest, properly centered without extra spaces
+                // "BAAVA" - Largest, properly centered without extra spaces
                 ctx.fillStyle = '#FFFFFF'; // White
                 ctx.font = "64px 'Press Start 2P', monospace";
                 ctx.shadowColor = flashOn ? '#00FFFF' : '#FFFFFF'; // Cyan glow when flashing
                 ctx.shadowBlur = glowIntensity;
-                ctx.fillText('BHAAVA', centerX, currentY); // Removed extra spaces for proper centering
+                ctx.fillText('BAAVA', centerX, currentY); // Removed extra spaces for proper centering
                 
-                currentY += 70; // Equal spacing below BHAAVA (same as above)
+                currentY += 70; // Equal spacing below BAAVA (same as above)
                 
-                // "GAME" - Smaller than BHAAVA, same as THE
+                // "GAME" - Smaller than BAAVA, same as THE
                 ctx.fillStyle = '#FFFFFF'; // White
                 ctx.font = "40px 'Press Start 2P', monospace"; // Reduced from 48px to 40px to match THE
                 ctx.shadowColor = flashOn ? '#00FFFF' : '#FFFFFF'; // Cyan glow when flashing
@@ -1871,40 +2178,64 @@
                 // Reset shadow for other text
                 ctx.shadowBlur = 0;
                 
-                currentY += 100; // Larger break
+                currentY += 75; // Reduced break to move help text up (was 100)
                 
-                // Subtitle - Help text (broken into multiple lines for better fit)
+                // Subtitle - Help text (broken into multiple lines for better readability)
                 ctx.fillStyle = '#CCCCCC'; // Light gray
-                ctx.font = "14px 'Press Start 2P', cursive"; // Reduced font size to fit screen
-                ctx.fillText('Help Bhaava navigate', centerX, currentY);
-                
-                currentY += 28; // Line break
-                
-                ctx.fillText('Naveena\'s Beegru Oota !', centerX, currentY);
-                
-                currentY += 70; // Line break
-                
-                // Tap to start
-                ctx.fillStyle = '#AAAAAA'; // Medium gray
-                ctx.font = "14px 'Press Start 2P', cursive"; // Increased from 10px to 14px
+                ctx.font = "15px 'Press Start 2P', cursive"; // Larger font for help lines
+                ctx.fillText('Help Baava Navigate', centerX, currentY);
+
+                currentY += 25; // Reduced spacing between lines
+
+                ctx.fillText('Naveena\'s Beegru Oota', centerX, currentY);
+
+                currentY += 25; // Reduced spacing between lines
+
+                ctx.fillText('by collecting his', centerX, currentY);
+
+                currentY += 25; // Reduced spacing between lines
+
+                ctx.fillText('favourites!', centerX, currentY);
+
+                currentY += 65; // Increased break before tap to start for line break (was 45)
+
+                // Extra line break before Tap to Start
+                currentY += 5; // Reduced spacing significantly (was 20, now much smaller)
+
+                // Tap to start - slightly smaller, still red
+                ctx.fillStyle = '#FF2222'; // Bright red
+                ctx.font = "16px 'Press Start 2P', cursive";
+                const tapToStartY = currentY; // Store position for click detection
                 ctx.fillText('Tap to Start Play', centerX, currentY);
+
+                currentY += 45; // Increased space after tap to start for line break (was 25)
+
+                // Rules button - smaller, yellow
+                ctx.fillStyle = '#FFD700'; // Gold/Yellow
+                ctx.font = "14px 'Press Start 2P', cursive";
+                const rulesY = currentY; // Store position for click detection
+                ctx.fillText('Rules', centerX, currentY);
+
+                // Store button positions globally for click detection
+                window.buttonPositions = {
+                    tapToStart: { x: centerX, y: tapToStartY },
+                    rules: { x: centerX, y: rulesY }
+                };
+
+                currentY += 60; // Space after
                 
-                currentY += 50; // First line break
-                
-                currentY += 30; // Second line break
-                
-                // Warning text in red - same size as beegru line
-                ctx.fillStyle = '#FF0000'; // Red
-                ctx.font = "14px 'Press Start 2P', cursive"; // Same as beegru line (14px)
-                ctx.fillText('PS: Beware of Guruji !', centerX, currentY);
+                // Credit line at the bottom
+                ctx.fillStyle = '#FFFFFF'; // White color for clean visibility (was #00FFFF)
+                ctx.font = "8px 'Press Start 2P', cursive"; // Small font
+                ctx.fillText('maklata by @harshankara', centerX, canvas.height - 35); // Capital M
             }
             
             // Draw game over screen
             function drawGameOverScreen() {
-                // Create lighter gradient background
+                // Create darker gradient background
                 const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
-                gradient.addColorStop(0, 'rgba(20, 20, 50, 0.85)'); // Lighter
-                gradient.addColorStop(1, 'rgba(15, 15, 40, 0.90)'); // Lighter
+                gradient.addColorStop(0, 'rgba(20, 20, 50, 0.80)'); // Increased opacity (was 0.65)
+                gradient.addColorStop(1, 'rgba(15, 15, 40, 0.85)'); // Increased opacity (was 0.70)
                 ctx.fillStyle = gradient;
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
                 
@@ -1920,27 +2251,27 @@
                 const flashOn = Math.floor(time / 400) % 2 === 0; // Flash every 400ms
                 const glowIntensity = 15 + 10 * Math.sin(time / 300); // Pulsing glow
                 
-                // "BHAAVA" - Small (40px)
+                // "BAAVA" - Small (reduced from 40px to 34px)
                 ctx.fillStyle = '#FFFFFF'; // White
-                ctx.font = "40px 'Press Start 2P', monospace";
+                ctx.font = "34px 'Press Start 2P', monospace";
                 ctx.shadowColor = flashOn ? '#00FFFF' : '#FFFFFF'; // Cyan glow when flashing
                 ctx.shadowBlur = glowIntensity;
-                ctx.fillText('BHAAVA', centerX, currentY);
+                ctx.fillText('BAAVA', centerX, currentY);
                 
                 currentY += 70; // Equal spacing
                 
-                // "PUDCHA" - Biggest (64px)
+                // "PUDCHA" - Biggest (reduced from 64px to 56px)
                 ctx.fillStyle = '#FFFFFF'; // White
-                ctx.font = "64px 'Press Start 2P', monospace";
+                ctx.font = "56px 'Press Start 2P', monospace";
                 ctx.shadowColor = flashOn ? '#00FFFF' : '#FFFFFF'; // Cyan glow when flashing
                 ctx.shadowBlur = glowIntensity;
                 ctx.fillText('PUDCHA', centerX, currentY);
                 
                 currentY += 70; // Equal spacing
                 
-                // "MARRE!" - Small (40px)
+                // "MARRE!" - Small (reduced from 40px to 34px)
                 ctx.fillStyle = '#FFFFFF'; // White
-                ctx.font = "40px 'Press Start 2P', monospace";
+                ctx.font = "34px 'Press Start 2P', monospace";
                 ctx.shadowColor = flashOn ? '#00FFFF' : '#FFFFFF'; // Cyan glow when flashing
                 ctx.shadowBlur = glowIntensity;
                 ctx.fillText('MARRE!', centerX, currentY);
@@ -1962,31 +2293,129 @@
                 ctx.font = "32px 'Press Start 2P', monospace";
                 ctx.fillText(`${score}`, centerX, currentY);
                 
-                currentY += 60; // Space before restart prompt
+                currentY += 50; // Reduced space before fun message
+                
+                // Fun message - same as in rules popup
+                ctx.fillStyle = '#FFD700'; // Gold
+                ctx.font = "10px 'Press Start 2P', monospace"; // Increased from 8px to 10px
+                ctx.fillText('Just for fun, made out of', centerX, currentY);
+                
+                currentY += 15; // Increased line spacing
+                ctx.fillText('love for Su From So movie !', centerX, currentY);
+                
+                currentY += 50; // Added even more space after the message (extra line break)
                 
                 // "Tap to Start Play" without blinking effect
-                ctx.fillStyle = '#FFFFFF';
+                ctx.fillStyle = '#FF2222'; // Bright red
                 ctx.font = "18px 'Press Start 2P', monospace";
                 ctx.fillText('Tap to Start Play', centerX, currentY);
+                
+                // Credit line at the bottom
+                ctx.fillStyle = '#FFFFFF'; // White color for clean visibility
+                ctx.font = "8px 'Press Start 2P', cursive"; // Small font
+                ctx.fillText('Maklata by @harshankara', centerX, canvas.height - 35); // Same position as home page
             }
             
-            // Handle keyboard input
+            // Draw rules popup
+            function drawRulesPopup() {
+                // Darker semi-transparent background overlay
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.7)'; // Increased opacity (was 0.5)
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                // Popup background
+                const popupWidth = canvas.width * 0.7; // Reduced from 0.9 to 0.7
+                const popupHeight = canvas.height * 0.6; // Reduced from 0.75 to 0.6
+                const popupX = (canvas.width - popupWidth) / 2;
+                const popupY = (canvas.height - popupHeight) / 2;
+                
+                // Popup background with border
+                ctx.fillStyle = '#1a1a2e'; // Dark blue
+                ctx.fillRect(popupX, popupY, popupWidth, popupHeight);
+                
+                ctx.strokeStyle = '#FFD700'; // Gold border
+                ctx.lineWidth = 3;
+                ctx.strokeRect(popupX, popupY, popupWidth, popupHeight);
+                
+                // Set text alignment
+                ctx.textAlign = 'center';
+                
+                const centerX = canvas.width / 2;
+                let currentY = popupY + 40;
+                
+                // Title
+                ctx.fillStyle = '#FFD700'; // Gold
+                ctx.font = "20px 'Press Start 2P', monospace";
+                ctx.fillText('GAME RULES', centerX, currentY);
+                
+                currentY += 50;
+                
+                // Collectibles section
+                ctx.fillStyle = '#00FF00'; // Green
+                ctx.font = "14px 'Press Start 2P', monospace";
+                ctx.fillText('COLLECTIBLES', centerX, currentY);
+                
+                currentY += 35;
+                ctx.fillStyle = '#FFFFFF'; // White
+                ctx.font = "10px 'Press Start 2P', monospace"; // Even smaller font
+                ctx.fillText('Bottle: +20pts +5% Energy', centerX, currentY);
+                
+                currentY += 25;
+                ctx.fillText('Leaves: +10pts +2% Energy', centerX, currentY);
+                
+                currentY += 45;
+                
+                // Damage section
+                ctx.fillStyle = '#FF4444'; // Red
+                ctx.font = "14px 'Press Start 2P', monospace";
+                ctx.fillText('DAMAGE', centerX, currentY);
+                
+                currentY += 35;
+                ctx.fillStyle = '#FFFFFF'; // White
+                ctx.font = "10px 'Press Start 2P', monospace"; // Consistent smaller font
+                ctx.fillText('Guruji & Ravi Anna:', centerX, currentY);
+                
+                currentY += 20; // Smaller spacing
+                ctx.fillText('-50% Energy', centerX, currentY);
+                
+                currentY += 30; // Space before next section
+                ctx.fillText('Other Enemies:', centerX, currentY);
+                
+                currentY += 20; // Smaller spacing
+                ctx.fillText('-30% Energy', centerX, currentY);
+                
+                currentY += 50; // Reduced spacing
+                
+                // Fun message - moved above close instruction
+                ctx.fillStyle = '#FFD700'; // Gold
+                ctx.font = "10px 'Press Start 2P', monospace"; // Increased from 8px to 10px
+                ctx.fillText('Just for fun, made out of', centerX, currentY);
+                
+                currentY += 15; // Increased line spacing
+                ctx.fillText('love for Su From So movie!', centerX, currentY);
+                
+                currentY += 25; // Reduced space after the message (less line break)
+                
+                // Close instruction - moved below
+                ctx.fillStyle = '#FF2222'; // Red
+                ctx.font = "12px 'Press Start 2P', monospace";
+                ctx.fillText('Tap anywhere to close', centerX, currentY);
+            }
+            
+            // Handle keyboard input - 4-Lane Movement
             function handleKeyDown(e) {
                 if (gameState === 'playing') {
-                    if (e.key === 'ArrowLeft') {
-                        player.direction = -1;
-                    } else if (e.key === 'ArrowRight') {
-                        player.direction = 1;
+                    if (e.key === 'ArrowLeft' && player.currentLane > 0) {
+                        player.currentLane--;
+                        e.preventDefault();
+                    } else if (e.key === 'ArrowRight' && player.currentLane < 3) {
+                        player.currentLane++;
+                        e.preventDefault();
                     }
                 }
             }
             
             function handleKeyUp(e) {
-                if (e.key === 'ArrowLeft' && player.direction === -1) {
-                    player.direction = 0;
-                } else if (e.key === 'ArrowRight' && player.direction === 1) {
-                    player.direction = 0;
-                }
+                // No need to handle key up for discrete lane movement
             }
             
             // Handle touch input
@@ -1994,38 +2423,31 @@
                 const leftBtn = document.getElementById('leftBtn');
                 const rightBtn = document.getElementById('rightBtn');
                 
-                // Show buttons for mobile
-                if (isMobile) {
-                    leftBtn.style.display = 'block';
-                    rightBtn.style.display = 'block';
-                }
+                // Controls are hidden by default and only shown during gameplay
+                // No need to show them here - they will be shown when game starts
                 
                 leftBtn.addEventListener('touchstart', function(e) {
                     e.preventDefault();
-                    if (gameState === 'playing') {
-                        player.direction = -1;
+                    if (gameState === 'playing' && player.currentLane > 0) {
+                        player.currentLane--;
                     }
                 });
                 
                 rightBtn.addEventListener('touchstart', function(e) {
                     e.preventDefault();
-                    if (gameState === 'playing') {
-                        player.direction = 1;
+                    if (gameState === 'playing' && player.currentLane < 3) {
+                        player.currentLane++;
                     }
                 });
                 
                 leftBtn.addEventListener('touchend', function(e) {
                     e.preventDefault();
-                    if (player.direction === -1) {
-                        player.direction = 0;
-                    }
+                    // No action needed for discrete lane movement
                 });
                 
                 rightBtn.addEventListener('touchend', function(e) {
                     e.preventDefault();
-                    if (player.direction === 1) {
-                        player.direction = 0;
-                    }
+                    // No action needed for discrete lane movement
                 });
             }
             
@@ -2036,6 +2458,11 @@
                     gameState = 'playing';
                     player.energy = 100;
                     score = 0;
+                    
+                    // Reset 4-lane player position
+                    player.currentLane = 1; // Start in lane 1 (second from left)
+                    player.direction = 0;
+                    player.isMoving = false;
                     
                     // Reset round system
                     currentRound = 1;
@@ -2048,6 +2475,14 @@
                     alcohols.length = 0;
                     leaves.length = 0;
                     enemies.length = 0;
+                    
+                    // Show mobile controls during gameplay
+                    if (isMobile) {
+                        const leftBtn = document.getElementById('leftBtn');
+                        const rightBtn = document.getElementById('rightBtn');
+                        leftBtn.classList.add('visible');
+                        rightBtn.classList.add('visible');
+                    }
                     
                     // Start background music if enabled
                     playBackgroundMusic();
@@ -2149,10 +2584,9 @@
                     updatePlayer(deltaTime);
                     
                     // Spawn and update obstacles and pickups
-                    spawnAlcohol();
+                    spawnCollectibles();
                     updateAlcohols();
                     
-                    spawnLeaves();
                     updateLeaves();
                     
                     spawnEnemies();
@@ -2182,6 +2616,8 @@
                     drawStartScreen();
                 } else if (gameState === 'gameOver') {
                     drawGameOverScreen();
+                } else if (gameState === 'rules') {
+                    drawRulesPopup();
                 }
                 
                 requestAnimationFrame(gameLoop);
@@ -2191,11 +2627,162 @@
             window.addEventListener('keydown', handleKeyDown);
             window.addEventListener('keyup', handleKeyUp);
             
-            // Click/tap to start or restart game
-            canvas.addEventListener('click', startGame);
+            // Click/tap to start or restart game, or handle UI clicks
+            canvas.addEventListener('click', function(e) {
+                if (gameState === 'playing' && window.musicCheckbox) {
+                    // Get click position relative to canvas
+                    const rect = canvas.getBoundingClientRect();
+                    const x = e.clientX - rect.left;
+                    const y = e.clientY - rect.top;
+                    
+                    // Check if click is on music checkbox
+                    if (x >= window.musicCheckbox.x && x <= window.musicCheckbox.x + window.musicCheckbox.width &&
+                        y >= window.musicCheckbox.y && y <= window.musicCheckbox.y + window.musicCheckbox.height) {
+                        toggleMusic();
+                        return;
+                    }
+                } else if (gameState === 'start') {
+                    // Check if clicking on Rules button
+                    const rect = canvas.getBoundingClientRect();
+                    const x = e.clientX - rect.left;
+                    const y = e.clientY - rect.top;
+                    
+                    // Use stored button positions for accurate detection
+                    if (window.buttonPositions) {
+                        const rulesBtn = window.buttonPositions.rules;
+                        const tapBtn = window.buttonPositions.tapToStart;
+                        
+                        // Check if click is near Rules button (within 80px horizontally, 25px vertically)
+                        if (Math.abs(x - rulesBtn.x) < 80 && Math.abs(y - rulesBtn.y) < 25) {
+                            gameState = 'rules';
+                            return;
+                        }
+                        
+                        // Check if click is near Tap to Start button
+                        if (Math.abs(x - tapBtn.x) < 120 && Math.abs(y - tapBtn.y) < 25) {
+                            startGame();
+                            return;
+                        }
+                    }
+                } else if (gameState === 'rules') {
+                    // Close rules popup
+                    gameState = 'start';
+                    return;
+                }
+                
+                // If not playing or not clicking special buttons, start/restart game
+                if (gameState !== 'playing' && gameState !== 'rules') {
+                    startGame();
+                }
+            });
             canvas.addEventListener('touchstart', function(e) {
                 e.preventDefault(); // Prevent double-firing of events
-                startGame();
+                
+                if (gameState === 'playing' && window.musicCheckbox) {
+                    // Get touch position relative to canvas
+                    const rect = canvas.getBoundingClientRect();
+                    const touch = e.touches[0];
+                    const x = touch.clientX - rect.left;
+                    const y = touch.clientY - rect.top;
+                    
+                    // Check if touch is on music checkbox
+                    if (x >= window.musicCheckbox.x && x <= window.musicCheckbox.x + window.musicCheckbox.width &&
+                        y >= window.musicCheckbox.y && y <= window.musicCheckbox.y + window.musicCheckbox.height) {
+                        toggleMusic();
+                        return;
+                    }
+                } else if (gameState === 'start') {
+                    // Check if touching Rules button
+                    const rect = canvas.getBoundingClientRect();
+                    const touch = e.touches[0];
+                    const x = touch.clientX - rect.left;
+                    const y = touch.clientY - rect.top;
+                    
+                    // Use stored button positions for accurate detection
+                    if (window.buttonPositions) {
+                        const rulesBtn = window.buttonPositions.rules;
+                        const tapBtn = window.buttonPositions.tapToStart;
+                        
+                        // Check if touch is near Rules button
+                        if (Math.abs(x - rulesBtn.x) < 80 && Math.abs(y - rulesBtn.y) < 25) {
+                            gameState = 'rules';
+                            return;
+                        }
+                        
+                        // Check if touch is near Tap to Start button
+                        if (Math.abs(x - tapBtn.x) < 120 && Math.abs(y - tapBtn.y) < 25) {
+                            startGame();
+                            return;
+                        }
+                    }
+                } else if (gameState === 'rules') {
+                    // Close rules popup
+                    gameState = 'start';
+                    return;
+                }
+                
+                // If not playing or not touching special buttons, start/restart game
+                if (gameState !== 'playing' && gameState !== 'rules') {
+                    startGame();
+                }
+            });
+            
+            // Prevent zoom gestures on touch devices - Enhanced cross-device support
+            let lastTouchEnd = 0;
+            
+            // Prevent pinch-to-zoom
+            document.addEventListener('touchstart', function(e) {
+                if (e.touches.length > 1) {
+                    e.preventDefault(); // Prevent pinch-to-zoom
+                }
+            }, { passive: false });
+            
+            // Prevent double-tap zoom with enhanced timing
+            document.addEventListener('touchend', function(e) {
+                const now = (new Date()).getTime();
+                if (now - lastTouchEnd <= 300) {
+                    e.preventDefault(); // Prevent double-tap zoom
+                }
+                lastTouchEnd = now;
+            }, false);
+            
+            // Prevent pinch-to-zoom during move
+            document.addEventListener('touchmove', function(e) {
+                if (e.touches.length > 1) {
+                    e.preventDefault(); // Prevent pinch-to-zoom during move
+                }
+            }, { passive: false });
+            
+            // Prevent mouse wheel zoom (for desktop testing)
+            document.addEventListener('wheel', function(e) {
+                if (e.ctrlKey) {
+                    e.preventDefault(); // Prevent Ctrl+scroll zoom
+                }
+            }, { passive: false });
+            
+            // Prevent keyboard zoom shortcuts
+            document.addEventListener('keydown', function(e) {
+                if ((e.ctrlKey || e.metaKey) && (e.keyCode === 61 || e.keyCode === 107 || e.keyCode === 173 || e.keyCode === 109 || e.keyCode === 187 || e.keyCode === 189)) {
+                    e.preventDefault(); // Prevent Ctrl/Cmd + +/- zoom
+                }
+            });
+            
+            // Prevent context menu on long press
+            document.addEventListener('contextmenu', function(e) {
+                e.preventDefault();
+            });
+            
+            // Additional gesture prevention for older Android devices
+            document.addEventListener('gesturestart', function(e) {
+                e.preventDefault();
+            });
+            
+            document.addEventListener('gesturechange', function(e) {
+                e.preventDefault();
+            });
+            
+            document.addEventListener('gestureend', function(e) {
+                e.preventDefault();
             });
             
             // Set up mobile controls

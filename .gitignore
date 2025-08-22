@@ -1,20 +1,20 @@
-# Node modules
-node_modules/
-
-# Server files that aren't needed for GitHub Pages
-server.js
-simpleServer.js
-stableServer.js
-gameServer.js
-
-# Temporary files
+# Development and temporary files
 .server-port
+.DS_Store
 
-# Scripts and development files
-move_servers_to_delete.sh
-start_game.sh
+# System files
+Thumbs.db
+*.log
 
-# Delete folder
-delete/
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
 
-# Keep only essential game files for GitHub Pages
+# Backup files
+*.backup
+*.bak
+*~
+
+# Keep only essential game files for GitHub Pages deployment
