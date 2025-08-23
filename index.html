@@ -13,6 +13,16 @@
     <meta name="msapplication-tap-highlight" content="no">
     <meta name="theme-color" content="#111111">
     <title>The Baava Game</title>
+    
+    <!-- Google Analytics -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-QBSK648PMQ"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', 'G-QBSK648PMQ');
+    </script>
+    
     <!-- Google Fonts - Press Start 2P for retro game feel -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -641,18 +651,18 @@
             
             function toggleMusic() {
                 musicEnabled = !musicEnabled;
+                console.log('Music toggled:', musicEnabled); // Debug log
                 
-                if (gameState === 'playing') {
-                    if (musicEnabled) {
-                        playBackgroundMusic();
-                    } else {
-                        stopBackgroundMusic();
-                    }
+                // Apply music state immediately regardless of game state
+                if (musicEnabled) {
+                    playBackgroundMusic();
+                } else {
+                    stopBackgroundMusic();
                 }
             }
             
             function playBackgroundMusic() {
-                if (backgroundMusic && musicEnabled && gameState === 'playing') {
+                if (backgroundMusic && musicEnabled) {
                     // Only reset if not already playing
                     if (backgroundMusic.paused || backgroundMusic.ended) {
                         backgroundMusic.currentTime = 0;
@@ -1457,10 +1467,12 @@
                 ctx.lineWidth = 2;
                 ctx.strokeRect(x, y, barWidth, barHeight);
                 
-                // "Kudi Meter" text inside the bar - increased size
+                // "Kudi Meter" text inside the bar - centered
                 ctx.fillStyle = '#fff';
-                ctx.font = "12px 'Press Start 2P', monospace"; // Increased from 9px to 12px
-                ctx.fillText(`Kudi Meter: ${Math.floor(player.energy)}%`, x + 5, y + 16);
+                ctx.font = "12px 'Press Start 2P', monospace";
+                ctx.textAlign = 'center'; // Center the text
+                ctx.fillText(`Kudi Meter: ${Math.floor(player.energy)}%`, x + barWidth/2, y + 16);
+                ctx.textAlign = 'left'; // Reset to left align for other text
                 
                 // UI elements positioned next to Kudi meter (on the road area)
                 const uiStartX = x + barWidth + 15; // Reduced spacing from 40 to 15 - much closer to meter
@@ -1477,29 +1489,40 @@
                 ctx.textAlign = 'left';
                 ctx.fillText(`Round: ${currentRound}`, uiStartX, y + 25);
                 
-                // Music toggle (next to Round) - show checkbox state
+                // Music toggle - SIMPLE BUTTON APPROACH
                 const musicY = y + 45;
                 ctx.fillStyle = '#fff';
-                ctx.font = "12px 'Press Start 2P', monospace"; // Same as other text
+                ctx.font = "12px 'Press Start 2P', monospace";
                 ctx.textAlign = 'left';
-                ctx.fillText('Music: ', uiStartX, musicY);
+                ctx.fillText('Music:', uiStartX, musicY);
 
-                // Draw even larger checkbox symbol separately
-                ctx.font = "36px 'Press Start 2P', monospace"; // Even larger font for checkbox
-                const musicSymbol = musicEnabled ? '☑' : '☐'; // Checked or unchecked
-                ctx.fillText(musicSymbol, uiStartX + 85, musicY + 8); // Adjust vertical position for alignment
+                // Draw simple button
+                const btnX = uiStartX + 75;
+                const btnY = musicY - 18;
+                const btnW = 50;
+                const btnH = 20;
                 
-                // Music checkbox (invisible but still clickable for functionality)
-                const checkboxX = uiStartX + 85; // Position near the checkmark
-                const checkboxY = musicY - 15;
-                const checkboxSize = 20; // Larger for easier clicking
+                // Button background - green for ON, red for OFF
+                ctx.fillStyle = musicEnabled ? '#00aa00' : '#aa0000';
+                ctx.fillRect(btnX, btnY, btnW, btnH);
                 
-                // Store checkbox position for click detection
-                window.musicCheckbox = {
-                    x: checkboxX,
-                    y: checkboxY,
-                    width: checkboxSize,
-                    height: checkboxSize
+                // Button border
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 2; // Make border more visible
+                ctx.strokeRect(btnX, btnY, btnW, btnH);
+                
+                // Button text
+                ctx.fillStyle = '#ffffff';
+                ctx.font = "10px 'Press Start 2P', monospace";
+                ctx.textAlign = 'center';
+                ctx.fillText(musicEnabled ? 'ON' : 'OFF', btnX + btnW/2, btnY + 14);
+                
+                // Store button bounds with generous padding
+                window.musicButton = {
+                    x: btnX - 15,
+                    y: btnY - 10, 
+                    width: btnW + 30,
+                    height: btnH + 20
                 };
             }
             
@@ -2282,10 +2305,13 @@
 
                 currentY += 60; // Space after
                 
+                // Add extra line break before credit line
+                currentY += 25; // Additional spacing for visual separation
+                
                 // Credit line at the bottom
                 ctx.fillStyle = '#FFFFFF'; // White color for clean visibility (was #00FFFF)
                 ctx.font = "8px 'Press Start 2P', cursive"; // Small font
-                ctx.fillText('maklata by @harshankara', centerX, canvas.height - 95); // Moved up one more line from -75 to -95
+                ctx.fillText('@harshankara', centerX, canvas.height - 95); // Moved up one more line from -75 to -95
             }
             
             // Draw game over screen
@@ -2368,10 +2394,13 @@
                 ctx.font = "18px 'Press Start 2P', monospace";
                 ctx.fillText('Tap to Start Play', centerX, currentY);
                 
+                // Add extra line break before credit line
+                currentY += 25; // Additional spacing for visual separation
+                
                 // Credit line at the bottom
                 ctx.fillStyle = '#FFFFFF'; // White color for clean visibility
                 ctx.font = "8px 'Press Start 2P', cursive"; // Small font
-                ctx.fillText('Maklata by @harshankara', centerX, canvas.height - 95); // Moved up one more line from -75 to -95
+                ctx.fillText('@harshankara', centerX, canvas.height - 95); // Moved up one more line from -75 to -95
             }
             
             // Draw rules popup
@@ -2483,22 +2512,43 @@
                 
                 // Global document touch handler - highest priority, bypasses canvas interference
                 document.addEventListener('touchstart', function(e) {
+                    const touch = e.touches[0];
+                    const touchX = touch.clientX;
+                    const touchY = touch.clientY;
+                    
+                    console.log(`Touch at: ${touchX}, ${touchY}`);
+                    
+                    // FIRST PRIORITY: Check music button (works in all game states)
+                    if (window.musicButton) {
+                        const canvas = document.getElementById('game');
+                        const rect = canvas.getBoundingClientRect();
+                        const canvasX = touchX - rect.left;
+                        const canvasY = touchY - rect.top;
+                        
+                        const btn = window.musicButton;
+                        if (canvasX >= btn.x && canvasX <= btn.x + btn.width && 
+                            canvasY >= btn.y && canvasY <= btn.y + btn.height) {
+                            console.log('🎵 Music button touched via mobile handler!');
+                            e.preventDefault();
+                            e.stopPropagation();
+                            toggleMusic();
+                            return;
+                        }
+                    }
+                    
+                    // SECOND PRIORITY: Mobile controls (only during gameplay)
                     if (gameState !== 'playing') return;
                     
                     e.preventDefault();
                     e.stopPropagation();
-                    
-                    const touch = e.touches[0];
-                    const touchX = touch.clientX;
-                    const touchY = touch.clientY;
                     
                     // Get button positions and dimensions
                     const leftBtnRect = leftBtn.getBoundingClientRect();
                     const rightBtnRect = rightBtn.getBoundingClientRect();
                     
                     console.log(`Touch at: ${touchX}, ${touchY}`);
-                    console.log(`Left button: ${leftBtnRect.left}-${leftBtnRect.right}, ${leftBtnRect.top}-${leftBtnRect.bottom}`);
-                    console.log(`Right button: ${rightBtnRect.left}-${rightBtnRect.right}, ${rightBtnRect.top}-${rightBtnRect.bottom}`);
+                    // console.log(`Left button: ${leftBtnRect.left}-${leftBtnRect.right}, ${leftBtnRect.top}-${leftBtnRect.bottom}`);
+                    // console.log(`Right button: ${rightBtnRect.left}-${rightBtnRect.right}, ${rightBtnRect.top}-${rightBtnRect.bottom}`);
                     
                     // Check if touch is within left button area
                     if (touchX >= leftBtnRect.left && touchX <= leftBtnRect.right &&
@@ -2720,19 +2770,22 @@
             
             // Click/tap to start or restart game, or handle UI clicks
             canvas.addEventListener('click', function(e) {
-                if (gameState === 'playing' && window.musicCheckbox) {
-                    // Get click position relative to canvas
+                // Always check for music button click first (works in all game states)
+                if (window.musicButton) {
                     const rect = canvas.getBoundingClientRect();
                     const x = e.clientX - rect.left;
                     const y = e.clientY - rect.top;
                     
-                    // Check if click is on music checkbox
-                    if (x >= window.musicCheckbox.x && x <= window.musicCheckbox.x + window.musicCheckbox.width &&
-                        y >= window.musicCheckbox.y && y <= window.musicCheckbox.y + window.musicCheckbox.height) {
+                    // Check if click is on music button
+                    if (x >= window.musicButton.x && x <= window.musicButton.x + window.musicButton.width &&
+                        y >= window.musicButton.y && y <= window.musicButton.y + window.musicButton.height) {
+                        console.log('🎵 Music button clicked!');
                         toggleMusic();
                         return;
                     }
-                } else if (gameState === 'start') {
+                }
+                
+                if (gameState === 'start') {
                     // Check if clicking on Rules button
                     const rect = canvas.getBoundingClientRect();
                     const x = e.clientX - rect.left;
@@ -2769,20 +2822,23 @@
             canvas.addEventListener('touchstart', function(e) {
                 e.preventDefault(); // Prevent double-firing of events
                 
-                if (gameState === 'playing' && window.musicCheckbox) {
-                    // Get touch position relative to canvas
+                // Always check for music button touch first (works in all game states)
+                if (window.musicButton) {
                     const rect = canvas.getBoundingClientRect();
                     const touch = e.touches[0];
                     const x = touch.clientX - rect.left;
                     const y = touch.clientY - rect.top;
                     
-                    // Check if touch is on music checkbox
-                    if (x >= window.musicCheckbox.x && x <= window.musicCheckbox.x + window.musicCheckbox.width &&
-                        y >= window.musicCheckbox.y && y <= window.musicCheckbox.y + window.musicCheckbox.height) {
+                    // Check if touch is on music button
+                    if (x >= window.musicButton.x && x <= window.musicButton.x + window.musicButton.width &&
+                        y >= window.musicButton.y && y <= window.musicButton.y + window.musicButton.height) {
+                        console.log('🎵 Music button touched!');
                         toggleMusic();
                         return;
                     }
-                } else if (gameState === 'start') {
+                }
+                
+                if (gameState === 'start') {
                     // Check if touching Rules button
                     const rect = canvas.getBoundingClientRect();
                     const touch = e.touches[0];
@@ -2844,6 +2900,35 @@
                 const tapX = touch.clientX;
                 const tapY = touch.clientY;
                 
+                // Check if touch is on mobile control buttons - allow rapid tapping on controls
+                let isOnControlButton = false;
+                if (gameState === 'playing') {
+                    const leftBtn = document.getElementById('leftBtn');
+                    const rightBtn = document.getElementById('rightBtn');
+                    
+                    if (leftBtn && rightBtn) {
+                        const leftBtnRect = leftBtn.getBoundingClientRect();
+                        const rightBtnRect = rightBtn.getBoundingClientRect();
+                        
+                        // Check if touch is within left button area (with extra margin for easier tapping)
+                        if (tapX >= leftBtnRect.left - 20 && tapX <= leftBtnRect.right + 20 &&
+                            tapY >= leftBtnRect.top - 20 && tapY <= leftBtnRect.bottom + 20) {
+                            isOnControlButton = true;
+                        }
+                        
+                        // Check if touch is within right button area (with extra margin for easier tapping)
+                        if (tapX >= rightBtnRect.left - 20 && tapX <= rightBtnRect.right + 20 &&
+                            tapY >= rightBtnRect.top - 20 && tapY <= rightBtnRect.bottom + 20) {
+                            isOnControlButton = true;
+                        }
+                    }
+                }
+                
+                // If touching control buttons, skip double-tap prevention
+                if (isOnControlButton) {
+                    return; // Allow the touch to proceed normally
+                }
+                
                 // Clear existing timer
                 if (tapTimer) {
                     clearTimeout(tapTimer);
@@ -2880,6 +2965,40 @@
             // Primary touchend handler - additional protection
             document.addEventListener('touchend', function(e) {
                 const now = Date.now();
+                
+                // Check if touch ended on mobile control buttons - allow rapid tapping on controls
+                let isOnControlButton = false;
+                if (gameState === 'playing' && e.changedTouches.length > 0) {
+                    const touch = e.changedTouches[0];
+                    const tapX = touch.clientX;
+                    const tapY = touch.clientY;
+                    
+                    const leftBtn = document.getElementById('leftBtn');
+                    const rightBtn = document.getElementById('rightBtn');
+                    
+                    if (leftBtn && rightBtn) {
+                        const leftBtnRect = leftBtn.getBoundingClientRect();
+                        const rightBtnRect = rightBtn.getBoundingClientRect();
+                        
+                        // Check if touch ended within left button area (with extra margin)
+                        if (tapX >= leftBtnRect.left - 20 && tapX <= leftBtnRect.right + 20 &&
+                            tapY >= leftBtnRect.top - 20 && tapY <= leftBtnRect.bottom + 20) {
+                            isOnControlButton = true;
+                        }
+                        
+                        // Check if touch ended within right button area (with extra margin)
+                        if (tapX >= rightBtnRect.left - 20 && tapX <= rightBtnRect.right + 20 &&
+                            tapY >= rightBtnRect.top - 20 && tapY <= rightBtnRect.bottom + 20) {
+                            isOnControlButton = true;
+                        }
+                    }
+                }
+                
+                // If ending touch on control buttons, skip rapid touch prevention
+                if (isOnControlButton) {
+                    lastTouchEnd = now; // Still update timing for other areas
+                    return; // Allow the touch to proceed normally
+                }
                 
                 // Block rapid successive touches (double-tap protection)
                 if (now - lastTouchEnd <= 300) {
